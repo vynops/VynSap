@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/performance/page": "app/(dashboard)/performance/page.js"
+}

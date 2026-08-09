@@ -1,0 +1,62 @@
+name: VynSAP Smoke
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/**'
+      - 'data/**'
+      - 'package.json'
+      - 'scripts/smoke-report.mjs'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Start app
+        run: |
+          npm run dev -- --port 3080 > vynsap-dev.log 2>&1 &
+          echo $! > vynsap.pid
+
+      - name: Wait for health
+        run: |
+          for i in {1..60}; do
+            if curl -fsS http://localhost:3080/login > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Server did not become ready"
+          cat vynsap-dev.log || true
+          exit 1
+
+      - name: Run smoke report
+        run: npm run smoke:report
+
+      - name: Upload smoke report
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-report
+          path: smoke-report.json
+
+      - name: Stop app
+        if: always()
+        run: |
+          if [ -f vynsap.pid ]; then
+            kill $(cat vynsap.pid) || true
+          fi

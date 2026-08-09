@@ -1,0 +1,72 @@
+[
+  {
+    "id": "prop-012037c8",
+    "title": "Optimize PostgreSQL Configuration",
+    "description": "Adjust PostgreSQL configuration to utilize available memory and improve performance",
+    "category": "performance",
+    "impact": "medium",
+    "effort": "medium",
+    "riskLevel": "low",
+    "expectedGain": "10-20% performance improvement",
+    "aiReasoning": "PostgreSQL configuration optimization can improve performance by utilizing available memory and adjusting settings for better query execution",
+    "sql": "ALTER SYSTEM SET shared_buffers TO '256MB'; ALTER SYSTEM SET effective_cache_size TO '512MB';",
+    "status": "pending",
+    "createdAt": "2026-08-09T14:18:29.791Z"
+  },
+  {
+    "id": "prop-7bf7690f",
+    "title": "Monitor and Analyze Frequent Unloads in MySQL 8",
+    "description": "Investigate and optimize frequent unloads in MySQL 8 to prevent performance degradation",
+    "category": "performance",
+    "impact": "low",
+    "effort": "low",
+    "riskLevel": "safe",
+    "expectedGain": "5-10% performance improvement",
+    "aiReasoning": "Frequent unloads can indicate performance issues, monitoring and analyzing these events can help identify optimization opportunities",
+    "sql": "SELECT * FROM information_schema.table_statistics WHERE table_name IN ('processlist', 'session_account_connect_attrs', 'global_status', 'session_status', 'global_variables');",
+    "status": "pending",
+    "createdAt": "2026-08-09T14:18:29.792Z"
+  },
+  {
+    "id": "prop-0b9b8ce5",
+    "title": "Review and Adjust Memory Allocation for MySQL 8",
+    "description": "Review and adjust memory allocation for MySQL 8 to ensure optimal performance",
+    "category": "memory",
+    "impact": "medium",
+    "effort": "medium",
+    "riskLevel": "low",
+    "expectedGain": "10-20% performance improvement",
+    "aiReasoning": "Optimal memory allocation is crucial for MySQL 8 performance, reviewing and adjusting memory settings can help improve performance",
+    "sql": "SHOW VARIABLES LIKE 'innodb_buffer_pool_size';",
+    "status": "pending",
+    "createdAt": "2026-08-09T14:18:29.793Z"
+  },
+  {
+    "id": "prop-19d05b50",
+    "title": "Implement Regular Backup and Recovery Strategy",
+    "description": "Develop and implement a regular backup and recovery strategy for all databases",
+    "category": "backup",
+    "impact": "critical",
+    "effort": "high",
+    "riskLevel": "low",
+    "expectedGain": "Data protection and recovery assurance",
+    "aiReasoning": "A regular backup and recovery strategy is essential for data protection and business continuity",
+    "sql": "None",
+    "status": "pending",
+    "createdAt": "2026-08-09T14:18:29.794Z"
+  },
+  {
+    "id": "prop-ffff6403",
+    "title": "Monitor and Analyze PostgreSQL Replica Performance",
+    "description": "Monitor and analyze PostgreSQL replica performance to ensure optimal replication",
+    "category": "replication",
+    "impact": "medium",
+    "effort": "low",
+    "riskLevel": "safe",
+    "expectedGain": "5-10% performance improvement",
+    "aiReasoning": "Monitoring and analyzing replica performance can help identify optimization opportunities and ensure optimal replication",
+    "sql": "SELECT * FROM pg_stat_replication;",
+    "status": "pending",
+    "createdAt": "2026-08-09T14:18:29.795Z"
+  }
+]

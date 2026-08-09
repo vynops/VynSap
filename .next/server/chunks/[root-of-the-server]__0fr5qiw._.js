@@ -1,0 +1,68 @@
+module.exports=[23862,e=>e.a(async(E,_)=>{try{let E=await e.y("pg-587764f78a6c7a9c");e.n(E),_()}catch(e){_(e)}},!0),69191,e=>e.a(async(E,_)=>{try{var t=e.i(23862),T=e.i(15120),a=E([t]);[t]=a.then?(await a)():a;let n=new Map;async function A(e,E,_=[]){let t=await e.connect();try{return(await t.query(E,_)).rows}finally{t.release()}}async function S(e,E){let _=function(e){let E=n.get(e.id);if(E)return E;let _=new t.Pool({host:e.host,port:e.port||5432,user:e.username,password:(0,T.decryptPassword)(e.passwordEnc),database:e.database||"postgres",max:3,connectionTimeoutMillis:5e3,idleTimeoutMillis:3e4});return n.set(e.id,_),_}(e),a=E.replace(/\s+/g," ").toUpperCase();if(a.includes("M_DATABASE")&&!a.includes("M_DATABASES")){let E=await A(_,`
+      SELECT version() AS ver, current_database() AS db,
+             pg_postmaster_start_time() AS start_time`);return[{SYSTEM_ID:E[0]?.db,VERSION:E[0]?.ver,USAGE:"PRODUCTION",ACTIVE_STATUS:"YES",HOST:e.host,SVC:4}]}if(a.includes("M_HOST_RESOURCE_UTILIZATION")&&a.includes("IDLE_CPU_PCT")){let E=await A(_,`
+      SELECT count(*) FILTER (WHERE state='active' AND backend_type='client backend') AS active_q,
+             (SELECT setting::float FROM pg_settings WHERE name='max_connections') AS max_conn
+      FROM pg_stat_activity`),t=Number(E[0]?.active_q??0),T=Number(E[0]?.max_conn??100),a=Math.min(94,+(t/T*300+8).toFixed(1));return[{HOST:e.host,CPU_USED_PCT:a,OPEN_FILE_COUNT:847,SWAP_MB:0}]}if(a.includes("M_HOST_RESOURCE_UTILIZATION")){let E=await A(_,`
+      SELECT pg_database_size(current_database()) / 1073741824.0 AS used_gb,
+             (SELECT setting::float FROM pg_settings WHERE name='shared_buffers') * 8192 / 1073741824.0 AS buf_gb`),t=+Number(E[0]?.used_gb??0).toFixed(2),T=+Number(E[0]?.buf_gb??.5).toFixed(2),a=+Math.max(4*T,2*t).toFixed(2),S=+(a-t).toFixed(2);return[{HOST:e.host,LIMIT_GB:a,USED_GB:t,FREE_GB:S,PHYS_USED_GB:t,MEM_USED_GB:t,MEM_FREE_GB:S,MEM_LIMIT_GB:a,ERP_USED_GB:t}]}if(a.includes("M_SERVICES")&&a.includes("COUNT(*)")){let e=await A(_,"SELECT count(*) AS cnt FROM pg_stat_activity WHERE state='active'");return[{SVC_COUNT:4,ACTIVE_COUNT:Number(e[0]?.cnt??0)}]}if(a.includes("M_SERVICES")){let E=await A(_,`
+      SELECT pid, application_name, state, query_start, wait_event_type
+      FROM pg_stat_activity WHERE backend_type='client backend' LIMIT 8`);return["nameserver","indexserver","preprocessor","compileserver"].map((_,t)=>({SERVICE_NAME:_,HOST:e.host,PORT:e.port+t,ACTIVE_STATUS:"YES",SQL_EXECUTION_COUNT:1e3+2e3*t,MEM_USED_MB:300+800*t,CPU_SEC:5e4+2e5*t,CONNECTION_COUNT:E.length+t,TRANSACTION_COUNT:3*t,START_TIME:new Date(Date.now()-2592e5).toISOString(),COORDINATOR_TYPE:0===t?"COORDINATOR":"NONE"}))}if(a.includes("M_CONNECTIONS")){let e=await A(_,`
+      SELECT count(*) AS total,
+             count(*) FILTER (WHERE state='active') AS running,
+             count(*) FILTER (WHERE state='idle')   AS idle
+      FROM pg_stat_activity WHERE backend_type='client backend'`);return[{TOTAL_CONN:Number(e[0]?.total??0),RUNNING:Number(e[0]?.running??0),IDLE:Number(e[0]?.idle??0)}]}if(a.includes("M_SQL_PLAN_CACHE")||a.includes("M_EXPENSIVE_STATEMENTS"))try{let e=a.includes("5000000")?5e6:1e6;return await A(_,`
+        SELECT query AS STATEMENT_STRING,
+               (mean_exec_time * 1000)::bigint AS AVG_EXECUTION_TIME,
+               (total_exec_time * 1000)::bigint AS TOTAL_EXECUTION_TIME,
+               (max_exec_time * 1000)::bigint   AS MAX_EXECUTION_TIME,
+               calls AS EXECUTION_COUNT, rows AS TOTAL_RESULT_RECORD_COUNT,
+               queryid::text AS STATEMENT_HASH
+        FROM pg_stat_statements
+        WHERE mean_exec_time > $1
+        ORDER BY mean_exec_time DESC LIMIT 20`,[e/1e3])}catch{return[]}if(a.includes("M_CS_TABLES")){let E=await A(_,`
+      SELECT schemaname AS SCHEMA_NAME, relname AS TABLE_NAME,
+             n_live_tup AS ROW_COUNT,
+             pg_total_relation_size(relid) / 1073741824.0 AS MEMORY_SIZE_IN_TOTAL,
+             pg_relation_size(relid) / 1073741824.0       AS MEMORY_SIZE_IN_MAIN,
+             0.0 AS MEMORY_SIZE_IN_DELTA,
+             (n_tup_ins + n_tup_upd + n_tup_del) AS WRITE_COUNT,
+             seq_scan + idx_scan AS READ_COUNT
+      FROM pg_stat_user_tables ORDER BY pg_total_relation_size(relid) DESC LIMIT 50`),t=E.reduce((e,E)=>({cs_total:e.cs_total+Number(E.MEMORY_SIZE_IN_TOTAL??0),cs_main:e.cs_main+Number(E.MEMORY_SIZE_IN_MAIN??0)}),{cs_total:0,cs_main:0});return a.includes("GROUP BY HOST")?[{HOST:e.host,CS_TOTAL_GB:+t.cs_total.toFixed(3),CS_DELTA_GB:0,CS_MAIN_GB:+t.cs_main.toFixed(3),CS_TABLE_COUNT:E.length}]:E}if(a.includes("M_CS_UNLOADS"))return await A(_,`
+      SELECT schemaname AS SCHEMA_NAME, relname AS TABLE_NAME,
+             n_dead_tup AS UNLOADS
+      FROM pg_stat_user_tables WHERE n_dead_tup > 0 ORDER BY n_dead_tup DESC LIMIT 10`);if(a.includes("M_HEAP_MEMORY")){let E=await A(_,`
+      SELECT buffers_alloc * 8192 / 1073741824.0 AS heap_alloc_gb,
+             buffers_clean * 8192 / 1073741824.0 AS heap_used_gb
+      FROM pg_stat_bgwriter`),t=+Number(E[0]?.heap_alloc_gb??0).toFixed(3),T=+Number(E[0]?.heap_used_gb??0).toFixed(3);return[{HOST:e.host,HEAP_USED_GB:T,HEAP_ALLOC_GB:t}]}if(a.includes("M_SHARED_MEMORY")){let E=await A(_,"SELECT (setting::float * 8192 / 1073741824.0) AS shared_gb FROM pg_settings WHERE name='shared_buffers'");return[{HOST:e.host,SHARED_GB:+Number(E[0]?.shared_gb??0).toFixed(3)}]}if(a.includes("M_VOLUME_IO_TOTAL_STATISTICS")){let E=await A(_,`
+      SELECT buffers_checkpoint * 8192 / 1048576.0  AS WRITE_MB,
+             buffers_clean      * 8192 / 1048576.0  AS READ_MB,
+             checkpoints_timed + checkpoints_req     AS WRITE_OPS,
+             buffers_alloc                           AS READ_OPS
+      FROM pg_stat_bgwriter`);return[{HOST:e.host,READ_MB:+Number(E[0]?.READ_MB??0).toFixed(1),WRITE_MB:+Number(E[0]?.WRITE_MB??0).toFixed(1),READ_OPS:E[0]?.READ_OPS,WRITE_OPS:E[0]?.WRITE_OPS}]}if(a.includes("M_DISK_USAGE")||a.includes("M_VOLUMES")||a.includes("M_DISK_VOLUME_STATISTICS")){let E=await A(_,`
+      SELECT datname AS TABLE_NAME,
+             pg_database_size(datname) / 1073741824.0 AS USED_GB,
+             (pg_database_size(datname) * 1.5) / 1073741824.0 AS TOTAL_GB,
+             (pg_database_size(datname) * 0.5) / 1073741824.0 AS FREE_GB
+      FROM pg_database WHERE datistemplate=false ORDER BY pg_database_size(datname) DESC`);if(a.includes("M_DISK_USAGE"))return E.map(E=>({HOST:e.host,USAGE_TYPE:"DATA",PATH:`/var/lib/postgresql/data/${E.TABLE_NAME}`,TOTAL_GB:+Number(E.TOTAL_GB).toFixed(2),USED_GB:+Number(E.USED_GB).toFixed(2),FREE_GB:+Number(E.FREE_GB).toFixed(2),USED_PCT:+(Number(E.USED_GB)/Number(E.TOTAL_GB)*100).toFixed(1)}));if(a.includes("M_DISK_VOLUME_STATISTICS")){let _=E.reduce((e,E)=>e+Number(E.USED_GB),0);return[{HOST:e.host,DATA_VOL_TOTAL_GB:+(1.5*_).toFixed(2),DATA_VOL_USED_GB:+_.toFixed(2),LOG_VOL_TOTAL_GB:+(.5*_).toFixed(2),LOG_VOL_USED_GB:+(.3*_).toFixed(2)}]}return E.map((E,_)=>({VOLUME_ID:_+1,SERVICE_NAME:"indexserver",HOST:e.host,PORT:e.port,VOLUME_TYPE:"DATA",MAX_GB:+Number(E.TOTAL_GB).toFixed(2),USED_GB:+Number(E.USED_GB).toFixed(2),PATH:`/pgdata/${E.TABLE_NAME}`}))}if(a.includes("M_ALERTS")&&!a.includes("M_ALERT_DEFINITIONS")){let E=[];try{(await A(_,`
+        SELECT pid, query, state, now() - query_start AS duration, wait_event_type
+        FROM pg_stat_activity
+        WHERE state='active' AND query_start < now() - interval '30 seconds'
+          AND backend_type='client backend' LIMIT 20`)).forEach((_,t)=>{let T=Number(_.duration??0);E.push({ALERT_ID:100+t,ALERT_TIMESTAMP:new Date().toISOString(),ALERT_RATING:T>3e5?5:3,ALERT_DETAILS:`Long query: ${String(_.query??"").slice(0,100)}`,ALERT_USERACTION:"Review and terminate if needed",HOST:e.host,PORT:e.port,SERVICE_NAME:"indexserver"})})}catch{}try{let t=await A(_,"SELECT count(*) AS cnt FROM pg_locks WHERE NOT granted");Number(t[0]?.cnt??0)>0&&E.push({ALERT_ID:200,ALERT_TIMESTAMP:new Date().toISOString(),ALERT_RATING:4,ALERT_DETAILS:`${t[0]?.cnt} ungranted lock(s) detected`,ALERT_USERACTION:"Investigate lock contention",HOST:e.host,PORT:e.port,SERVICE_NAME:"indexserver"})}catch{}return E}if(a.includes("M_ALERT_DEFINITIONS"))return[{ALERT_ID:1,ALERT_NAME:"Long Running Queries",ALERT_DESCRIPTION:"Queries running longer than 30s",ALERT_CATEGORY:"PERFORMANCE",DEFAULT_THRESHOLD_WARNING_VALUE:30,DEFAULT_THRESHOLD_CRITICAL_VALUE:300,UNIT:"seconds"},{ALERT_ID:2,ALERT_NAME:"Lock Waits",ALERT_DESCRIPTION:"Ungranted lock requests",ALERT_CATEGORY:"AVAILABILITY",DEFAULT_THRESHOLD_WARNING_VALUE:1,DEFAULT_THRESHOLD_CRITICAL_VALUE:5,UNIT:"count"},{ALERT_ID:3,ALERT_NAME:"Idle Connections",ALERT_DESCRIPTION:"Idle client connections consuming resources",ALERT_CATEGORY:"RESOURCES",DEFAULT_THRESHOLD_WARNING_VALUE:50,DEFAULT_THRESHOLD_CRITICAL_VALUE:90,UNIT:"count"},{ALERT_ID:4,ALERT_NAME:"Replication Lag",ALERT_DESCRIPTION:"Replica WAL receive lag",ALERT_CATEGORY:"AVAILABILITY",DEFAULT_THRESHOLD_WARNING_VALUE:60,DEFAULT_THRESHOLD_CRITICAL_VALUE:300,UNIT:"seconds"},{ALERT_ID:5,ALERT_NAME:"Table Bloat",ALERT_DESCRIPTION:"Dead tuples exceeding 20% of live",ALERT_CATEGORY:"CAPACITY",DEFAULT_THRESHOLD_WARNING_VALUE:20,DEFAULT_THRESHOLD_CRITICAL_VALUE:50,UNIT:"pct"}];if(a.includes("M_SERVICE_REPLICATION"))try{let E=await A(_,`
+        SELECT application_name, state, sent_lsn, write_lsn, flush_lsn, replay_lsn,
+               (sent_lsn - replay_lsn) AS lag_bytes,
+               write_lag, flush_lag, replay_lag, sync_state
+        FROM pg_stat_replication`);if(0===E.length)return[];return E.map((E,_)=>({SITE_ID:_+1,SITE_NAME:E.application_name,HOST:e.host,PORT:e.port,VOLUME_ID:_+1,REPLICATION_MODE:"sync"===E.sync_state?"SYNC":"ASYNC",REPLICATION_STATUS:"streaming"===E.state?"Active":"Error",REPLICATION_STATUS_DETAILS:String(E.state??""),SECONDARY_HOST:E.application_name,SECONDARY_PORT:e.port+1,SECONDARY_FULLY_SYNCED:"sync"===E.sync_state?"TRUE":"FALSE",SHIPPED_LOG_MB:+(Number(E.lag_bytes??0)/1048576).toFixed(2),REPLICATED_LOG_MB:0,ASYNC_BUFFER_FULL_COUNT:0,REPLICATION_DELAY_MS:1e3*!!E.replay_lag}))}catch{return[]}if(a.includes("M_SYSTEM_REPLICATION_SITES"))try{return(await A(_,"SELECT application_name, state, sync_state FROM pg_stat_replication LIMIT 5")).map((e,E)=>({SITE_ID:E+1,SITE_NAME:e.application_name,REPLICATION_MODE:e.sync_state,FAILOVER_STATUS:"streaming"===e.state?"OK":"UNKNOWN",FAILOVER_TIME:null,OPERATION_MODE:"LOGREPLAY"}))}catch{return[]}if(a.includes("M_BACKUP_CATALOG"))try{let E=await A(_,"SELECT * FROM pg_stat_archiver"),t=E[0]?.last_archived_time;return[{ENTRY_ID:1,BACKUP_TYPE:"complete data backup",STATE:E[0]?.failed_count===0?"successful":"failed",STARTED:t??new Date(Date.now()-864e5).toISOString(),FINISHED:t??new Date().toISOString(),BACKUP_SIZE:0,SYS_START_POSITION:0,SYS_END_POSITION:0,SOURCE_VOLUME_TYPE:"DATA",HOST:e.host,PORT:e.port,SERVICE_NAME:"indexserver",BACKUP_ID:1,DATABASE_NAME:e.database,SYSTEM_ID:e.id}]}catch{return[]}return a.includes("SYS_DATABASES")||a.includes("M_DATABASES")?(await A(_,`
+      SELECT datname AS DATABASE_NAME, datistemplate AS is_template,
+             pg_database_size(datname) AS size_bytes
+      FROM pg_database WHERE datistemplate=false ORDER BY datname`)).map(E=>({DATABASE_NAME:E.DATABASE_NAME,DESCRIPTION:E.DATABASE_NAME,ACTIVE_STATUS:"YES",HOST:e.host,SQL_PORT:e.port,INDEXSERVER_ACTUAL_ROLE:"MASTER",CURRENT_STATEMENT_COUNT:0,START_TIME:new Date(Date.now()-6048e5).toISOString(),STATUS:"YES",DETAIL:""})):a.includes("FROM USERS")||a.includes("USER_NAME")&&a.includes("USER_STATUS")?(await A(_,`
+      SELECT rolname AS USER_NAME, rolcanlogin, rolsuper, rolcreatedb, rolcreaterole,
+             pg_authid.oid, rolconnlimit, rolvaliduntil
+      FROM pg_roles JOIN pg_authid USING (oid)
+      WHERE rolname NOT LIKE 'pg_%' ORDER BY rolname LIMIT 50`)).map(e=>({USER_NAME:e.USER_NAME,USER_STATUS:e.rolcanlogin?"ACTIVE":"DEACTIVATED",LAST_SUCCESSFUL_CONNECT:null,LAST_INVALID_CONNECT_ATTEMPT:null,INVALID_CONNECT_ATTEMPTS:0,PASSWORD_CHANGE_TIME:null,PASSWORD_POLICY:"DEFAULT",IS_RESTRICTED:"FALSE",IS_PASSWORD_LIFETIME_CHECK_ENABLED:"FALSE",CREATOR:"SYSTEM",CREATE_TIME:null})):a.includes("FROM ROLES")||a.includes("ROLE_NAME")&&a.includes("ROLE_MODE")?(await A(_,"SELECT rolname AS ROLE_NAME, rolsuper, rolcreatedb FROM pg_roles WHERE NOT rolcanlogin ORDER BY rolname LIMIT 50")).map(e=>({ROLE_NAME:e.ROLE_NAME,ROLE_MODE:"GLOBAL",IS_ENABLED:"TRUE",COMMENT:"",CREATE_TIME:null})):a.includes("GRANTED_PRIVILEGES")?(await A(_,`
+      SELECT grantee, table_schema AS SCHEMA_NAME, table_name AS OBJECT_NAME,
+             privilege_type AS PRIVILEGE, 'TABLE' AS OBJECT_TYPE, 'TRUE' AS IS_VALID, is_grantable AS IS_GRANTABLE
+      FROM information_schema.role_table_grants
+      WHERE grantee NOT IN ('PUBLIC') LIMIT 200`)).map(e=>({...e,GRANTEE:e.grantee,GRANTEE_TYPE:"USER",GRANTOR:"postgres"})):a.includes("AUDIT_POLICIES")?[{POLICY_NAME:"default_audit",STATUS:"ACTIVE",AUDIT_LEVEL:"INFO",EVENT_STATUS:"ACTIVE",TRAIL_TYPE:"TABLE",RETENTION_DAY:90,CREATE_TIME:new Date(Date.now()-2592e6).toISOString()}]:a.includes("GRANTED_ROLES")?(await A(_,"SELECT r.rolname AS GRANTEE, m.rolname AS ROLE_NAME FROM pg_auth_members JOIN pg_roles r ON r.oid=pg_auth_members.member JOIN pg_roles m ON m.oid=pg_auth_members.roleid LIMIT 100")).map(e=>({...e,GRANTOR:"postgres",IS_GRANTABLE:"FALSE"})):[]}e.s(["queryPostgres",0,S]),_()}catch(e){_(e)}},!1)];
+
+//# sourceMappingURL=%5Broot-of-the-server%5D__0fr5qiw._.js.map

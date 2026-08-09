@@ -1,0 +1,10 @@
+[
+  {
+    "id": "user-admin",
+    "name": "Admin",
+    "email": "admin@vynsap.local",
+    "passwordHash": "7644f2e6406ede592d6e1e8e1aa273e2:37996225fd41dc8d32c9f9c32e884dfb38ff5fed5ff9a0c83d93c3bafea67870",
+    "role": "admin",
+    "createdAt": "2024-01-01T00:00:00.000Z"
+  }
+]

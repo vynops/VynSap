@@ -1,0 +1,11 @@
+var R=require("../../../chunks/[turbopack]_runtime.js")("server/app/api/copilot/route.js")
+R.c("server/chunks/src_lib_auth_ts_1_aqh19._.js")
+R.c("server/chunks/node_modules_next_dist_esm_build_templates_app-route_04fa1sr.js")
+R.c("server/chunks/[root-of-the-server]__1s_vmne._.js")
+R.c("server/chunks/[root-of-the-server]__0xuaoik._.js")
+R.c("server/chunks/node_modules_11da7c-._.js")
+R.c("server/chunks/node_modules_nodemailer_0bd42c_._.js")
+R.c("server/chunks/node_modules_formdata-node_lib_esm_File_1ny6w8u.js")
+R.c("server/chunks/_next-internal_server_app_api_copilot_route_actions_0npj33t.js")
+R.m(69139)
+module.exports=R.m(69139).exports

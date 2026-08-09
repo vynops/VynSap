@@ -1,0 +1,29 @@
+[
+  {
+    "id": "run-bd1924bb",
+    "ruleId": "rule-demo-1",
+    "ruleName": "Nightly delta merge review",
+    "startedAt": "2026-07-24T10:47:52.768Z",
+    "completedAt": "2026-07-24T10:47:52.769Z",
+    "status": "success",
+    "output": "Executed SQL. Rows returned: 8"
+  },
+  {
+    "id": "run-c4b1af17",
+    "ruleId": "rule-demo-1",
+    "ruleName": "Nightly delta merge review",
+    "startedAt": "2026-07-24T10:47:51.993Z",
+    "completedAt": "2026-07-24T10:47:51.993Z",
+    "status": "success",
+    "output": "Executed SQL. Rows returned: 8"
+  },
+  {
+    "id": "run-a2cb8bc2",
+    "ruleId": "rule-demo-1",
+    "ruleName": "Nightly delta merge review",
+    "startedAt": "2026-07-24T10:47:51.072Z",
+    "completedAt": "2026-07-24T10:47:51.076Z",
+    "status": "success",
+    "output": "Executed SQL. Rows returned: 8"
+  }
+]

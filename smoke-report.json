@@ -1,0 +1,479 @@
+{
+  "timestamp": "2026-07-24T13:27:52.418Z",
+  "base": "http://localhost:3080",
+  "login": {
+    "status": 200,
+    "cookie": true
+  },
+  "pages": [
+    {
+      "path": "/",
+      "status": 307,
+      "redirect": "/overview",
+      "htmlBytes": 11165,
+      "noDataHint": false
+    },
+    {
+      "path": "/overview",
+      "status": 200,
+      "redirect": null,
+      "htmlBytes": 41803,
+      "noDataHint": false
+    },
+    {
+      "path": "/fi",
+      "status": 200,
+      "redirect": null,
+      "htmlBytes": 34973,
+      "noDataHint": false
+    },
+    {
+      "path": "/mm",
+      "status": 200,
+      "redirect": null,
+      "htmlBytes": 34989,
+      "noDataHint": false
+    },
+    {
+      "path": "/sd",
+      "status": 200,
+      "redirect": null,
+      "htmlBytes": 34985,
+      "noDataHint": false
+    },
+    {
+      "path": "/pp",
+      "status": 200,
+      "redirect": null,
+      "htmlBytes": 34997,
+      "noDataHint": false
+    },
+    {
+      "path": "/hcm",
+      "status": 200,
+      "redirect": null,
+      "htmlBytes": 35023,
+      "noDataHint": false
+    },
+    {
+      "path": "/tenants",
+      "status": 200,
+      "redirect": null,
+      "htmlBytes": 35992,
+      "noDataHint": false
+    },
+    {
+      "path": "/services",
+      "status": 200,
+      "redirect": null,
+      "htmlBytes": 35114,
+      "noDataHint": false
+    },
+    {
+      "path": "/alerts",
+      "status": 200,
+      "redirect": null,
+      "htmlBytes": 35216,
+      "noDataHint": false
+    },
+    {
+      "path": "/incidents",
+      "status": 200,
+      "redirect": null,
+      "htmlBytes": 37624,
+      "noDataHint": false
+    },
+    {
+      "path": "/oncall",
+      "status": 200,
+      "redirect": null,
+      "htmlBytes": 37998,
+      "noDataHint": false
+    },
+    {
+      "path": "/automation",
+      "status": 200,
+      "redirect": null,
+      "htmlBytes": 37143,
+      "noDataHint": false
+    },
+    {
+      "path": "/autonomous",
+      "status": 200,
+      "redirect": null,
+      "htmlBytes": 38402,
+      "noDataHint": false
+    },
+    {
+      "path": "/security",
+      "status": 200,
+      "redirect": null,
+      "htmlBytes": 35852,
+      "noDataHint": false
+    },
+    {
+      "path": "/copilot",
+      "status": 200,
+      "redirect": null,
+      "htmlBytes": 41556,
+      "noDataHint": false
+    },
+    {
+      "path": "/team",
+      "status": 200,
+      "redirect": null,
+      "htmlBytes": 36024,
+      "noDataHint": false
+    },
+    {
+      "path": "/settings",
+      "status": 200,
+      "redirect": null,
+      "htmlBytes": 34917,
+      "noDataHint": false
+    },
+    {
+      "path": "/sla",
+      "status": 200,
+      "redirect": null,
+      "htmlBytes": 36062,
+      "noDataHint": false
+    },
+    {
+      "path": "/performance",
+      "status": 200,
+      "redirect": null,
+      "htmlBytes": 34880,
+      "noDataHint": false
+    },
+    {
+      "path": "/memory",
+      "status": 200,
+      "redirect": null,
+      "htmlBytes": 35836,
+      "noDataHint": false
+    },
+    {
+      "path": "/queries",
+      "status": 200,
+      "redirect": null,
+      "htmlBytes": 35409,
+      "noDataHint": false
+    },
+    {
+      "path": "/slow-queries",
+      "status": 200,
+      "redirect": null,
+      "htmlBytes": 36273,
+      "noDataHint": false
+    },
+    {
+      "path": "/schema",
+      "status": 200,
+      "redirect": null,
+      "htmlBytes": 36162,
+      "noDataHint": false
+    },
+    {
+      "path": "/replication",
+      "status": 200,
+      "redirect": null,
+      "htmlBytes": 34900,
+      "noDataHint": false
+    },
+    {
+      "path": "/backups",
+      "status": 200,
+      "redirect": null,
+      "htmlBytes": 34835,
+      "noDataHint": false
+    },
+    {
+      "path": "/capacity",
+      "status": 200,
+      "redirect": null,
+      "htmlBytes": 35858,
+      "noDataHint": false
+    },
+    {
+      "path": "/column-store",
+      "status": 200,
+      "redirect": null,
+      "htmlBytes": 34920,
+      "noDataHint": false
+    }
+  ],
+  "apis": [
+    {
+      "path": "/api/erp-overview",
+      "status": 200,
+      "shape": "object",
+      "count": 3,
+      "keys": [
+        "generatedAt",
+        "system",
+        "connectors",
+        "processes",
+        "modules",
+        "events"
+      ]
+    },
+    {
+      "path": "/api/modules?code=FI",
+      "status": 200,
+      "shape": "object",
+      "count": 1,
+      "keys": [
+        "generatedAt",
+        "system",
+        "modules"
+      ]
+    },
+    {
+      "path": "/api/modules?code=MM",
+      "status": 200,
+      "shape": "object",
+      "count": 1,
+      "keys": [
+        "generatedAt",
+        "system",
+        "modules"
+      ]
+    },
+    {
+      "path": "/api/modules?code=SD",
+      "status": 200,
+      "shape": "object",
+      "count": 1,
+      "keys": [
+        "generatedAt",
+        "system",
+        "modules"
+      ]
+    },
+    {
+      "path": "/api/modules?code=PP",
+      "status": 200,
+      "shape": "object",
+      "count": 1,
+      "keys": [
+        "generatedAt",
+        "system",
+        "modules"
+      ]
+    },
+    {
+      "path": "/api/modules?code=HCM",
+      "status": 200,
+      "shape": "object",
+      "count": 1,
+      "keys": [
+        "generatedAt",
+        "system",
+        "modules"
+      ]
+    },
+    {
+      "path": "/api/processes",
+      "status": 200,
+      "shape": "object",
+      "count": 4,
+      "keys": [
+        "generatedAt",
+        "system",
+        "processes",
+        "bottlenecks",
+        "trends",
+        "slo"
+      ]
+    },
+    {
+      "path": "/api/overview",
+      "status": 200,
+      "shape": "object",
+      "count": 3,
+      "keys": [
+        "generatedAt",
+        "system",
+        "connectors",
+        "processes",
+        "modules",
+        "events"
+      ]
+    },
+    {
+      "path": "/api/tenants",
+      "status": 200,
+      "shape": "array",
+      "count": 1,
+      "keys": []
+    },
+    {
+      "path": "/api/services",
+      "status": 200,
+      "shape": "array",
+      "count": 3,
+      "keys": []
+    },
+    {
+      "path": "/api/alerts",
+      "status": 200,
+      "shape": "array",
+      "count": 1,
+      "keys": []
+    },
+    {
+      "path": "/api/incidents",
+      "status": 200,
+      "shape": "array",
+      "count": 3,
+      "keys": []
+    },
+    {
+      "path": "/api/oncall",
+      "status": 200,
+      "shape": "object",
+      "count": null,
+      "keys": [
+        "schedules",
+        "escalations",
+        "stats"
+      ]
+    },
+    {
+      "path": "/api/automation",
+      "status": 200,
+      "shape": "object",
+      "count": 12,
+      "keys": [
+        "rules",
+        "runs",
+        "stats"
+      ]
+    },
+    {
+      "path": "/api/autonomous",
+      "status": 200,
+      "shape": "array",
+      "count": 4,
+      "keys": []
+    },
+    {
+      "path": "/api/security",
+      "status": 200,
+      "shape": "array",
+      "count": 1,
+      "keys": []
+    },
+    {
+      "path": "/api/sla",
+      "status": 200,
+      "shape": "object",
+      "count": null,
+      "keys": [
+        "target",
+        "entries",
+        "summary"
+      ]
+    },
+    {
+      "path": "/api/performance",
+      "status": 200,
+      "shape": "array",
+      "count": 1,
+      "keys": []
+    },
+    {
+      "path": "/api/memory",
+      "status": 200,
+      "shape": "array",
+      "count": 1,
+      "keys": []
+    },
+    {
+      "path": "/api/queries",
+      "status": 200,
+      "shape": "array",
+      "count": 1,
+      "keys": []
+    },
+    {
+      "path": "/api/slow-queries",
+      "status": 200,
+      "shape": "array",
+      "count": 0,
+      "keys": []
+    },
+    {
+      "path": "/api/schema",
+      "status": 200,
+      "shape": "array",
+      "count": 1,
+      "keys": []
+    },
+    {
+      "path": "/api/replication",
+      "status": 200,
+      "shape": "array",
+      "count": 1,
+      "keys": []
+    },
+    {
+      "path": "/api/backups",
+      "status": 200,
+      "shape": "array",
+      "count": 1,
+      "keys": []
+    },
+    {
+      "path": "/api/capacity",
+      "status": 200,
+      "shape": "array",
+      "count": 1,
+      "keys": []
+    },
+    {
+      "path": "/api/column-store",
+      "status": 200,
+      "shape": "array",
+      "count": 1,
+      "keys": []
+    },
+    {
+      "path": "/api/team",
+      "status": 200,
+      "shape": "array",
+      "count": 1,
+      "keys": []
+    },
+    {
+      "path": "/api/settings",
+      "status": 200,
+      "shape": "object",
+      "count": null,
+      "keys": [
+        "smtpPass",
+        "groqApiKey",
+        "smtpUser",
+        "slackWebhook"
+      ]
+    },
+    {
+      "path": "/api/copilot",
+      "status": 200,
+      "shape": "object",
+      "count": null,
+      "keys": [
+        "history",
+        "usage"
+      ]
+    }
+  ],
+  "summary": {
+    "pagesTotal": 28,
+    "pagesFailed": 0,
+    "apisTotal": 29,
+    "apisFailed": 0,
+    "pagesWithNoDataHint": 0
+  }
+}
