@@ -1,2 +1,15 @@
 node_modules/
 .next/
+dist/
+build/
+.env
+.env.*
+!.env.example
+*.log
+data/*.json
+data/*.json2
+!data/.gitkeep
+!data/*.example.json
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+.code-review-graph/
