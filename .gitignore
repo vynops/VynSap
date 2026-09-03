@@ -13,3 +13,6 @@ data/*.json2
 *.tsbuildinfo
 tsconfig.tsbuildinfo
 .code-review-graph/
+
+# local runtime backups
+data/*.backup*
