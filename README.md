@@ -29,6 +29,19 @@ Built on **Next.js 16 App Router**, VynSAP connects to SAP systems via OData, RF
 
 ---
 
+## Screenshots
+
+| | |
+|---|---|
+| [![Login](screenshots/login.png)](screenshots/login.png)<br>Login | [![ERP overview](screenshots/erp-overview.png)](screenshots/erp-overview.png)<br>ERP overview |
+| [![Process trends](screenshots/process-trends.png)](screenshots/process-trends.png)<br>Process trends and module health | [![ERP connections](screenshots/erp-connections.png)](screenshots/erp-connections.png)<br>ERP connections |
+| [![Connector health](screenshots/connector-health.png)](screenshots/connector-health.png)<br>RFC, BAPI, and OData connector health | [![Alert center](screenshots/alert-center.png)](screenshots/alert-center.png)<br>Alert center |
+| [![SLA tracker](screenshots/sla-tracker.png)](screenshots/sla-tracker.png)<br>SLA tracker | [![Automation](screenshots/automation.png)](screenshots/automation.png)<br>Background job automation |
+| [![Autonomous ops](screenshots/autonomous-ops.png)](screenshots/autonomous-ops.png)<br>Autonomous operations | [![AI copilot](screenshots/ai-copilot.png)](screenshots/ai-copilot.png)<br>AI copilot |
+| [![Audit log](screenshots/audit-log.png)](screenshots/audit-log.png)<br>System audit log | [![Team management](screenshots/team-management.png)](screenshots/team-management.png)<br>Team management |
+
+---
+
 ## Table of Contents
 
 - [Features](#features)
