@@ -4,7 +4,7 @@ import Groq from 'groq-sdk'
 let _client: Groq | null = null
 let _clientKey: string | null = null
 
-const DEFAULT_GROQ_MODEL = 'llama-3.3-70b-versatile'
+const DEFAULT_GROQ_MODEL = 'openai/gpt-oss-120b'
 type Message = { role: 'user' | 'assistant'; content: string }
 
 export interface CopilotResult {

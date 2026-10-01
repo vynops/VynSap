@@ -131,21 +131,13 @@ export default function CopilotPage() {
       <div className="grid flex-1 min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
       {/* Messages */}
       <div className="flex min-h-0 flex-col overflow-y-auto rounded-2xl bg-[#0f1629] border border-slate-800 p-4 space-y-4 mb-4 lg:mb-0">
-        {messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center">
+        {messages.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-6">
             <Bot className="w-12 h-12 text-blue-500/50 mb-4" />
-            <p className="text-slate-500 text-sm text-center mb-6">Ask me anything about SAP ERP — monitoring, tuning, SQL, HSR, backups, security…</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-xl">
-              {suggestions.map((s, i) => (
-                <button key={i} onClick={() => send(s)}
-                  className="text-left text-xs bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-slate-400 hover:text-white hover:border-slate-600 transition-colors">
-                  {s}
-                </button>
-              ))}
-            </div>
+            <p className="text-slate-500 text-sm text-center">Ask me anything about SAP ERP — monitoring, tuning, SQL, HSR, backups, security…</p>
           </div>
-        ) : (
-          messages.map((m, i) => (
+        )}
+        {messages.map((m, i) => (
             <div key={i} className={cn('flex', m.role === 'user' ? 'justify-end' : 'justify-start')}>
               <div className={cn(
                 'max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed',
@@ -158,8 +150,15 @@ export default function CopilotPage() {
                 ) : m.content}
               </div>
             </div>
-          ))
-        )}
+        ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-xl mx-auto mt-auto pt-4 border-t border-slate-800/60">
+          {suggestions.map((s, i) => (
+            <button key={i} onClick={() => send(s)}
+              className="text-left text-xs bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-slate-400 hover:text-white hover:border-slate-600 transition-colors">
+              {s}
+            </button>
+          ))}
+        </div>
         {loading && (
           <div className="flex justify-start">
             <div className="bg-slate-800/80 rounded-2xl rounded-bl-sm px-4 py-3">
