@@ -4,6 +4,7 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'VynSAP — SAP ERP Operations Platform',
   description: 'Enterprise SAP ERP database monitoring, performance, and operations platform.',
+  icons: { icon: '/favicon-circle.png', shortcut: '/favicon-circle.png', apple: '/favicon-circle.png' },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -13,3 +14,4 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   )
 }
+

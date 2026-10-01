@@ -40,11 +40,15 @@ export default function AutonomousPage() {
   async function generate() {
     setGenerating(true)
     setError('')
-    await fetch('/api/autonomous', {
+    const res = await fetch('/api/autonomous', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'generate' }),
     })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({ error: 'Proposal generation failed' }))
+      setError(String(data.error ?? 'Proposal generation failed'))
+    }
     setGenerating(false)
     mutate()
   }
@@ -55,7 +59,7 @@ export default function AutonomousPage() {
     const res = await fetch(`/api/autonomous/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action }),
+      body: JSON.stringify({ action, ...(action === 'apply' ? { confirmation: 'apply' } : {}) }),
     })
     if (!res.ok) {
       const d = await res.json().catch(() => ({ error: 'Operation failed' }))

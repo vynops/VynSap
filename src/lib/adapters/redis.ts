@@ -7,6 +7,11 @@ import { decryptPassword } from '../connection-store'
 
 type Row = Record<string, unknown>
 
+function queryLimit(sql: string, fallback = 20): number {
+  const match = sql.match(/\bLIMIT\s+(\d+)/i)
+  return Math.max(1, Math.min(Number(match?.[1] ?? fallback), 500))
+}
+
 const clients = new Map<string, Redis>()
 
 function getClient(conn: ErpConnection): Redis {
@@ -20,7 +25,10 @@ function getClient(conn: ErpConnection): Redis {
     connectTimeout: 5000,
     lazyConnect: true,
     maxRetriesPerRequest: 1,
+    retryStrategy: () => null,
+    reconnectOnError: () => false,
   })
+  client.on('error', () => undefined)
   clients.set(conn.id, client)
   return client
 }
@@ -84,7 +92,7 @@ export async function queryRedis(conn: ErpConnection, sql: string): Promise<Row[
   if (U.includes('M_SQL_PLAN_CACHE') || U.includes('M_EXPENSIVE_STATEMENTS')) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const slowlog = await (client as any).slowlog('get', '20') as unknown[][]
+      const slowlog = await (client as any).slowlog('get', String(queryLimit(sql))) as unknown[][]
       return (slowlog as [number, number, number, string[]][]).map((entry, i) => ({
         STATEMENT_HASH: String(entry[0] ?? i),
         STATEMENT_STRING: (entry[3] ?? []).join(' ').slice(0, 500),

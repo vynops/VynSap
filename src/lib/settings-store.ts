@@ -11,6 +11,10 @@ export interface AppSettings {
   smtpPass?: string
   slackWebhook?: string
   teamsWebhook?: string
+  customWebhook?: string
+  aiProvider?: 'groq' | 'openai' | 'anthropic' | 'google' | 'custom'
+  aiApiKey?: string
+  aiBaseUrl?: string
   groqApiKey?: string
   aiModel?: string
   defaultRefreshSec?: number

@@ -18,6 +18,9 @@ export interface Incident {
   connectionName?: string
   assignee?: string
   tags: string[]
+  fingerprint?: string
+  source?: 'manual' | 'alert' | 'automation' | 'ai'
+  evidence?: { alertFingerprint?: string; message?: string; capturedAt?: string }
   timeline: { at: string; by: string; note: string }[]
   createdAt: string
   updatedAt: string

@@ -11,7 +11,8 @@ export type AuditAction =
   | 'add_connection' | 'update_connection' | 'delete_connection'
   | 'update_settings' | 'test_integration'
   | 'create_transport' | 'approve_transport' | 'reject_transport' | 'apply_transport'
-  | 'copilot_query' | 'scheduler_fire'
+  | 'copilot_query' | 'scheduler_fire' | 'change_password' | 'reset_password'
+  | 'change_role' | 'activate_user' | 'deactivate_user' | 'delete_user'
 
 export interface AuditEntry {
   id: string

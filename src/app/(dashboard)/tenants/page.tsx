@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 const fetcher = (url: string) => fetch(url).then(r => r.json())
 
 interface Conn {
-  id: string; name: string; host: string; port: number
+  id: string; name: string; dbType?: string; host: string; port: number; database?: string
   connectorType: 'odata' | 'rfc' | 'bapi'; endpointUrl: string
   sapClient: string; systemNumber: string; language: string
   authType: 'basic' | 'oauth2' | 'saml'; username: string
@@ -29,11 +29,16 @@ function StatusBadge({ status }: { status: string }) {
 
 export default function TenantsPage() {
   const { data, isLoading, mutate } = useSWR('/api/connections', fetcher)
-  const [showAdd, setShowAdd] = useState(false)
+  const [showModal, setShowModal] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState({
     name: '',
+    dbType: 'hana',
     connectorType: 'odata',
     endpointUrl: 'https://erp-host.example.com/sap/opu/odata',
+    host: '',
+    port: '',
+    database: '',
     sapClient: '100',
     systemNumber: '00',
     language: 'EN',
@@ -47,24 +52,63 @@ export default function TenantsPage() {
   })
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState<string | null>(null)
-  const [testResult, setTestResult] = useState<Record<string, boolean>>({})
+  const [testResult, setTestResult] = useState<Record<string, { ok: boolean; message: string }>>({})
 
   const conns: Conn[] = Array.isArray(data) ? data : []
   const lagValues = conns.map(c => Number(c.freshnessLagMins)).filter(v => Number.isFinite(v))
   const avgLag = lagValues.length === 0 ? null : lagValues.reduce((n, x) => n + x, 0) / lagValues.length
   const staleCount = conns.filter(c => c.freshnessState === 'stale').length
 
-  async function handleAdd(e: React.FormEvent) {
+  function openAdd() {
+    setEditingId(null)
+    setShowModal(true)
+    setForm({
+      name: '', dbType: 'hana', connectorType: 'odata', endpointUrl: 'https://erp-host.example.com/sap/opu/odata',
+      host: '', port: '', database: '', sapClient: '100', systemNumber: '00', language: 'EN', authType: 'basic',
+      username: 'ERP_API_USER', password: '', ssl: true, sslValidateCert: true, environment: 'production', notes: '',
+    })
+  }
+
+  function openEdit(conn: Conn) {
+    setEditingId(conn.id)
+    setShowModal(true)
+    setForm({
+      name: conn.name,
+      dbType: conn.dbType ?? 'hana',
+      connectorType: conn.connectorType,
+      endpointUrl: conn.endpointUrl,
+      host: conn.host,
+      port: String(conn.port ?? ''),
+      database: conn.database ?? '',
+      sapClient: conn.sapClient,
+      systemNumber: conn.systemNumber,
+      language: conn.language,
+      authType: conn.authType,
+      username: conn.username,
+      password: '',
+      ssl: conn.ssl,
+      sslValidateCert: true,
+      environment: conn.environment,
+      notes: conn.notes ?? '',
+    })
+  }
+
+  async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    await fetch('/api/connections', {
-      method: 'POST',
+    const payload = { ...form, port: form.port ? Number(form.port) : undefined }
+    const res = await fetch(editingId ? `/api/connections/${editingId}` : '/api/connections', {
+      method: editingId ? 'PATCH' : 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     })
     setSaving(false)
-    setShowAdd(false)
+    if (!res.ok) return
+    const saved = await res.json()
+    setEditingId(null)
+    setShowModal(false)
     mutate()
+    if (editingId) await handleTest(saved.id)
   }
 
   async function handleDelete(id: string) {
@@ -77,7 +121,7 @@ export default function TenantsPage() {
     setTesting(id)
     const r = await fetch(`/api/connections/${id}/test`, { method: 'POST' })
     const d = await r.json()
-    setTestResult(prev => ({ ...prev, [id]: d.ok }))
+    setTestResult(prev => ({ ...prev, [id]: { ok: Boolean(d.ok), message: String(d.message ?? 'Connection check completed.') } }))
     setTesting(null)
     mutate()
   }
@@ -91,7 +135,7 @@ export default function TenantsPage() {
           <h2 className="text-base font-semibold text-white">ERP System Connections</h2>
           <p className="text-sm text-slate-400 mt-0.5">Manage SAP ERP application-layer connectors (OData, RFC, BAPI)</p>
         </div>
-        <button onClick={() => setShowAdd(true)}
+        <button onClick={openAdd}
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-2 rounded-lg transition-colors">
           <Plus className="w-3.5 h-3.5" /> Add Connection
         </button>
@@ -145,6 +189,10 @@ export default function TenantsPage() {
                     <div className="text-[11px] text-slate-600 mt-1 truncate">{conn.endpointUrl}</div>
                   </div>
                   <div className="flex items-center gap-1">
+                    <button onClick={() => openEdit(conn)}
+                      className="p-1.5 text-slate-500 hover:text-amber-400 transition-colors" title="Edit connection">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
                     <button onClick={() => handleTest(conn.id)} disabled={testing === conn.id}
                       className="p-1.5 text-slate-500 hover:text-blue-400 transition-colors" title="Test connection">
                       {testing === conn.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
@@ -177,9 +225,9 @@ export default function TenantsPage() {
 
                 {conn.id in testResult && (
                   <div className={cn('mt-2 text-xs flex items-center gap-1',
-                    testResult[conn.id] ? 'text-emerald-400' : 'text-red-400')}>
-                    {testResult[conn.id] ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
-                    {testResult[conn.id] ? 'Connection successful' : 'Connection failed'}
+                    testResult[conn.id].ok ? 'text-emerald-400' : 'text-red-400')}>
+                    {testResult[conn.id].ok ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                    <span>{testResult[conn.id].message}</span>
                   </div>
                 )}
               </div>
@@ -189,22 +237,33 @@ export default function TenantsPage() {
       )}
 
       {/* Add connection modal */}
-      {showAdd && (
+      {showModal && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
           <div className="bg-[#0f1629] border border-slate-700 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="font-bold text-white">Add ERP System Connection</h3>
-              <button onClick={() => setShowAdd(false)} className="text-slate-400 hover:text-white">
+              <h3 className="font-bold text-white">{editingId ? 'Edit ERP System Connection' : 'Add ERP System Connection'}</h3>
+              <button onClick={() => { setEditingId(null); setShowModal(false) }} className="text-slate-400 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleAdd} className="space-y-3">
+            <form onSubmit={handleSave} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
                   <label className="block text-xs font-semibold text-slate-400 mb-1">Display Name *</label>
                   <input value={form.name} onChange={e => f('name', e.target.value)} required
                     className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
                     placeholder="Production ERP OData Gateway" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1">Data Source</label>
+                  <select value={form.dbType} onChange={e => f('dbType', e.target.value)}
+                    className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                    <option value="hana">SAP / HANA</option>
+                    <option value="postgres">PostgreSQL</option>
+                    <option value="mysql">MySQL</option>
+                    <option value="redis">Redis</option>
+                    <option value="mongodb">MongoDB</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-1">Connector Type *</label>
@@ -226,10 +285,28 @@ export default function TenantsPage() {
                   </select>
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Endpoint URL *</label>
-                  <input value={form.endpointUrl} onChange={e => f('endpointUrl', e.target.value)} required
+                  <label className="block text-xs font-semibold text-slate-400 mb-1">Endpoint URL</label>
+                  <input value={form.endpointUrl} onChange={e => f('endpointUrl', e.target.value)}
                     className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
                     placeholder="https://erp-host.example.com/sap/opu/odata" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1">Host</label>
+                  <input value={form.host} onChange={e => f('host', e.target.value)}
+                    className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+                    placeholder="127.0.0.1" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1">Port</label>
+                  <input value={form.port} onChange={e => f('port', e.target.value)} type="number"
+                    className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+                    placeholder="5432" />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-semibold text-slate-400 mb-1">Database / Auth Database</label>
+                  <input value={form.database} onChange={e => f('database', e.target.value)}
+                    className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+                    placeholder="postgres, labdb, or admin" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-1">SAP Client (MANDT) *</label>
@@ -265,8 +342,8 @@ export default function TenantsPage() {
                     placeholder="ERP_API_USER" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Password *</label>
-                  <input type="password" value={form.password} onChange={e => f('password', e.target.value)} required
+                  <label className="block text-xs font-semibold text-slate-400 mb-1">Password {editingId ? '(leave blank to keep current)' : '*'}</label>
+                  <input type="password" value={form.password} onChange={e => f('password', e.target.value)} required={!editingId}
                     className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500" />
                 </div>
               </div>
@@ -283,14 +360,14 @@ export default function TenantsPage() {
                   placeholder="Optional notes…" />
               </div>
               <div className="flex gap-2 pt-2">
-                <button type="button" onClick={() => setShowAdd(false)}
+                <button type="button" onClick={() => { setEditingId(null); setShowModal(false) }}
                   className="flex-1 border border-slate-700 text-slate-300 text-sm font-semibold py-2 rounded-lg hover:bg-slate-800 transition-colors">
                   Cancel
                 </button>
                 <button type="submit" disabled={saving}
                   className="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold py-2 rounded-lg transition-colors flex items-center justify-center gap-2">
                   {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {saving ? 'Adding…' : 'Add Connection'}
+                  {saving ? 'Saving…' : editingId ? 'Save Changes' : 'Add Connection'}
                 </button>
               </div>
             </form>

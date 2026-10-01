@@ -163,7 +163,12 @@ async function autoGenerateProposals() {
   if (settings.autoProposals === false) return
 
   const metrics = getLiveMetrics()
-  const critical = metrics.filter(m => m.cpuPct > 85 || m.memPct > 85 || m.replLagSec > 120 || m.slowQueries > 5)
+  const critical = metrics.filter(m =>
+    m.cpuPct >= (settings.alertThresholdCpuPct ?? 85) ||
+    m.memPct >= (settings.alertThresholdMemPct ?? 90) ||
+    m.replLagSec >= (settings.alertThresholdReplicationLagSec ?? 10) ||
+    m.slowQueries > 5
+  )
   if (critical.length === 0) return
 
   // Don't spam — only generate if no pending proposals exist for this conn
@@ -216,21 +221,23 @@ export function startScheduler() {
   if (started) return
   started = true
 
-  const settings = loadSettings()
-  const intervalSec = settings.monitorIntervalSec ?? 60
-
   // Initial poll immediately
   void pollMetrics()
 
-  setInterval(async () => {
+  const schedulePoll = async () => {
     await pollMetrics()
     await evaluateRules()
-  }, intervalSec * 1000)
+    const intervalSec = Math.max(5, loadSettings().monitorIntervalSec ?? 60)
+    setTimeout(() => { void schedulePoll() }, intervalSec * 1000)
+  }
+  const scheduleProposals = async () => {
+    await autoGenerateProposals()
+    setTimeout(() => { void scheduleProposals() }, 10 * 60 * 1000)
+  }
 
   // Autonomous proposal generation every 10 minutes
-  setInterval(async () => {
-    await autoGenerateProposals()
-  }, 10 * 60 * 1000)
+  void schedulePoll()
+  void scheduleProposals()
 
-  console.log(`[VynSAP Scheduler] Started — polling every ${intervalSec}s`)
+  console.log('[VynSAP Scheduler] Started — polling interval is read from Settings')
 }

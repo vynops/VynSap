@@ -22,8 +22,10 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   const idx = conns.findIndex(c => c.id === id)
   if (idx < 0) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   const body = await req.json()
-  const conn = { ...conns[idx], ...body }
-  if (body.password) conn.passwordEnc = encryptPassword(body.password)
+  const { password, ...updates } = body
+  const conn = { ...conns[idx], ...updates }
+  if (password) conn.passwordEnc = encryptPassword(password)
+  delete (conn as Record<string, unknown>).password
   removeFromPool(id)
   saveConnection(conn)
   return NextResponse.json(conn)

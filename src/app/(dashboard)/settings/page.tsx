@@ -2,20 +2,20 @@
 
 import useSWR from 'swr'
 import { useState, useEffect } from 'react'
-import { Loader2, Save } from 'lucide-react'
+import { Eye, EyeOff, Loader2, Save } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const fetcher = (url: string) => fetch(url).then(r => r.json())
 
-const GROQ_MODELS = [
-  { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile (Recommended)' },
-  { value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant (Fast)' },
-  { value: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B (Long context)' },
-  { value: 'gemma2-9b-it', label: 'Gemma 2 9B IT' },
-  { value: 'llama3-70b-8192', label: 'Llama 3 70B' },
+const AI_PROVIDERS = [
+  { id: 'groq', label: 'Groq (Recommended)', keyLabel: 'Groq API Key', placeholder: 'gsk_…', defaultModel: 'openai/gpt-oss-120b', models: [{ value: 'openai/gpt-oss-120b', label: 'GPT OSS 120B' }, { value: 'openai/gpt-oss-20b', label: 'GPT OSS 20B (Fast)' }, { value: 'groq/compound', label: 'Groq Compound' }, { value: 'groq/compound-mini', label: 'Groq Compound Mini' }] },
+  { id: 'openai', label: 'OpenAI', keyLabel: 'OpenAI API Key', placeholder: 'sk-…', defaultModel: 'gpt-4o-mini', models: [{ value: 'gpt-4o', label: 'GPT-4o' }, { value: 'gpt-4o-mini', label: 'GPT-4o Mini' }, { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' }] },
+  { id: 'anthropic', label: 'Anthropic (Claude)', keyLabel: 'Claude API Key', placeholder: 'sk-ant-…', defaultModel: 'claude-3-5-sonnet-latest', models: [{ value: 'claude-3-5-sonnet-latest', label: 'Claude 3.5 Sonnet' }, { value: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku' }] },
+  { id: 'google', label: 'Google (Gemini)', keyLabel: 'Gemini API Key', placeholder: 'AIza…', defaultModel: 'gemini-2.0-flash', models: [{ value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' }, { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' }] },
+  { id: 'custom', label: 'Custom / Self-Hosted', keyLabel: 'API Key', placeholder: 'your-api-key', defaultModel: 'your-model-id', models: [] },
 ]
 
-type TestKind = 'groq' | 'email' | 'slack' | 'teams'
+type TestKind = 'groq' | 'openai' | 'anthropic' | 'google' | 'custom' | 'email' | 'slack' | 'teams' | 'webhook'
 type SelectOption = { value: string; label: string }
 type InputField = {
   key: string
@@ -41,14 +41,22 @@ export default function SettingsPage() {
   const [form, setForm] = useState<Record<string, string | number>>({})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [showAiKey, setShowAiKey] = useState(false)
   const [testing, setTesting] = useState<Record<string, boolean>>({})
   const [testResults, setTestResults] = useState<Record<string, { ok: boolean; message: string }>>({})
 
   useEffect(() => {
     if (data) {
+      const providerId = data.aiProvider ?? 'groq'
+      const provider = AI_PROVIDERS.find(item => item.id === providerId) ?? AI_PROVIDERS[0]
+      const configuredModel = String(data.aiModel ?? '')
+      const model = provider.models.length > 0 && !provider.models.some(item => item.value === configuredModel)
+        ? provider.defaultModel
+        : configuredModel || provider.defaultModel
       setForm({
         ...data,
-        aiModel: data.aiModel ?? 'llama-3.3-70b-versatile',
+        aiProvider: provider.id,
+        aiModel: model,
       })
     }
   }, [data])
@@ -87,19 +95,20 @@ export default function SettingsPage() {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    await fetch('/api/settings', {
+    const res = await fetch('/api/settings', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(form),
     })
     setSaving(false)
-    setSaved(true)
+    setSaved(res.ok)
     setTimeout(() => setSaved(false), 2000)
     mutate()
   }
 
   if (isLoading) return <div className="text-slate-600 text-sm py-8 text-center">Loading settings…</div>
 
+  const currentProvider = AI_PROVIDERS.find(provider => provider.id === form.aiProvider) ?? AI_PROVIDERS[0]
   const sections: SettingsSection[] = [
     {
       title: 'General',
@@ -121,10 +130,12 @@ export default function SettingsPage() {
     },
     {
       title: 'AI Copilot',
-      tests: [{ kind: 'groq', label: 'Test Groq API' }],
+      tests: [{ kind: currentProvider.id as TestKind, label: `Test ${currentProvider.label.replace(' (Recommended)', '')}` }],
       fields: [
-        { key: 'groqApiKey', label: 'Groq API Key', type: 'password', placeholder: 'gsk_…' },
-        { key: 'aiModel', label: 'AI Model', type: 'select', options: GROQ_MODELS },
+        { key: 'aiProvider', label: 'AI Provider', type: 'select', options: AI_PROVIDERS.map(provider => ({ value: provider.id, label: provider.label })) },
+        { key: 'aiApiKey', label: currentProvider.keyLabel, type: 'password', placeholder: currentProvider.placeholder },
+        ...(currentProvider.id === 'custom' ? [{ key: 'aiBaseUrl', label: 'API Base URL', type: 'text' as const, placeholder: 'https://ai.internal/v1' }] : []),
+        ...(currentProvider.models.length > 0 ? [{ key: 'aiModel', label: 'AI Model', type: 'select' as const, options: currentProvider.models }] : [{ key: 'aiModel', label: 'AI Model ID', type: 'text' as const, placeholder: currentProvider.defaultModel }]),
       ],
     },
     {
@@ -143,10 +154,12 @@ export default function SettingsPage() {
       tests: [
         { kind: 'slack', label: 'Test Slack' },
         { kind: 'teams', label: 'Test Teams' },
+        { kind: 'webhook', label: 'Test Webhook' },
       ],
       fields: [
         { key: 'slackWebhook', label: 'Slack Webhook URL', type: 'text', placeholder: 'https://hooks.slack.com/…' },
         { key: 'teamsWebhook', label: 'MS Teams Webhook URL', type: 'text', placeholder: 'https://outlook.office.com/…' },
+        { key: 'customWebhook', label: 'Custom Webhook URL', type: 'text', placeholder: 'https://example.com/vynsap/webhook' },
       ],
     },
   ]
@@ -193,13 +206,39 @@ export default function SettingsPage() {
                   {field.type === 'select' ? (
                     <select
                       value={String(form[field.key] ?? '')}
-                      onChange={e => f(field.key, e.target.value)}
+                      onChange={e => {
+                        if (field.key === 'aiProvider') {
+                          const nextProvider = AI_PROVIDERS.find(provider => provider.id === e.target.value) ?? AI_PROVIDERS[0]
+                          setForm(previous => ({ ...previous, aiProvider: nextProvider.id, aiModel: nextProvider.defaultModel, aiApiKey: '', aiBaseUrl: '' }))
+                        } else {
+                          f(field.key, e.target.value)
+                        }
+                      }}
                       className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
                     >
                       {field.options.map(opt => (
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                       ))}
                     </select>
+                  ) : field.key === 'aiApiKey' ? (
+                    <div className="relative">
+                      <input
+                        type={showAiKey ? 'text' : 'password'}
+                        value={String(form[field.key] ?? '')}
+                        onChange={e => f(field.key, e.target.value)}
+                        placeholder={field.placeholder}
+                        className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 pr-10 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowAiKey(value => !value)}
+                        aria-label={showAiKey ? 'Hide AI API key' : 'Show AI API key'}
+                        title={showAiKey ? 'Hide AI API key' : 'Show AI API key'}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-white"
+                      >
+                        {showAiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   ) : (
                     <input
                       type={field.type}

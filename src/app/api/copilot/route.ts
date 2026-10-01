@@ -75,6 +75,18 @@ export async function POST(req: NextRequest) {
   const result = await askCopilotDetailed(systemPrompt, userMsg)
   const connName = connId ? loadConnections().find(c => c.id === connId)?.name : undefined
 
+  if (result.error) {
+    appendAudit({
+      actor: (auth as { name?: string }).name ?? 'unknown',
+      actorRole: (auth as { role?: string }).role ?? 'viewer',
+      action: 'copilot_query',
+      resource: 'copilot',
+      detail: `${message.slice(0, 100)} | ${result.error.slice(0, 300)}`,
+      outcome: 'failure',
+    })
+    return NextResponse.json({ error: result.error }, { status: result.error.startsWith('No ') ? 503 : 502 })
+  }
+
   appendAudit({ actor: (auth as { name?: string }).name ?? 'unknown', actorRole: (auth as { role?: string }).role ?? 'viewer', action: 'copilot_query', resource: 'copilot', detail: message.slice(0, 120), outcome: 'success' })
 
   const saved = addCopilotHistoryEntry({

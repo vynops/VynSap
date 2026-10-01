@@ -7,6 +7,11 @@ import { decryptPassword } from '../connection-store'
 
 type Row = Record<string, unknown>
 
+function queryLimit(sql: string, fallback = 20): number {
+  const match = sql.match(/\bLIMIT\s+(\d+)/i)
+  return Math.max(1, Math.min(Number(match?.[1] ?? fallback), 500))
+}
+
 const pools = new Map<string, mysql.Pool>()
 
 function getPool(conn: ErpConnection): mysql.Pool {
@@ -92,7 +97,7 @@ export async function queryMySQL(conn: ErpConnection, sql: string): Promise<Row[
                COUNT_STAR AS EXECUTION_COUNT, SUM_ROWS_SENT AS TOTAL_RESULT_RECORD_COUNT
         FROM performance_schema.events_statements_summary_by_digest
         WHERE AVG_TIMER_WAIT > 1000000000
-        ORDER BY AVG_TIMER_WAIT DESC LIMIT 20`)
+        ORDER BY AVG_TIMER_WAIT DESC LIMIT ${queryLimit(sql)}`)
       return r
     } catch { return [] }
   }

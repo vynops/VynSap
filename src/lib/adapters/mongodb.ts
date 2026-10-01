@@ -7,6 +7,11 @@ import { decryptPassword } from '../connection-store'
 
 type Row = Record<string, unknown>
 
+function queryLimit(sql: string, fallback = 20): number {
+  const match = sql.match(/\bLIMIT\s+(\d+)/i)
+  return Math.max(1, Math.min(Number(match?.[1] ?? fallback), 500))
+}
+
 const clients = new Map<string, MongoClient>()
 
 async function getClient(conn: ErpConnection): Promise<MongoClient> {
@@ -76,7 +81,7 @@ export async function queryMongoDB(conn: ErpConnection, sql: string): Promise<Ro
     try {
       const currentOp = await admin.command({ currentOp: 1, active: true, secs_running: { $gt: 5 } })
       const inprog = (currentOp.inprog ?? []) as Array<Record<string, unknown>>
-      return inprog.slice(0, 20).map((op, i) => ({
+      return inprog.slice(0, queryLimit(sql)).map((op, i) => ({
         STATEMENT_HASH: String(op.opid ?? i),
         STATEMENT_STRING: JSON.stringify(op.command ?? {}).slice(0, 500),
         AVG_EXECUTION_TIME: Number(op.microsecs_running ?? 0),

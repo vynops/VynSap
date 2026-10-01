@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { loadConnections } from '@/lib/connection-store'
 import { queryErp } from '@/lib/erp-client'
-import { loadIncidents } from '@/lib/incident-store'
+import { createIncident, loadIncidents, saveIncident } from '@/lib/incident-store'
 import { appendAlertSnapshots, getAlertStats } from '@/lib/telemetry-store'
+import { recordAlertSignals } from '@/lib/apm-store'
+import { appendAudit } from '@/lib/audit-store'
 import { notify } from '@/lib/notifications'
+import { getThresholdAlerts } from '@/lib/threshold-alerts'
 
 export async function GET(req: NextRequest) {
   const auth = await requireRole(req, 'viewer')
@@ -17,7 +20,7 @@ export async function GET(req: NextRequest) {
   const cutoff24h = Date.now() - 24 * 3600 * 1000
 
   const all = await Promise.all(conns.map(async conn => {
-    const [active, definitions] = await Promise.all([
+    const [nativeAlerts, definitions, thresholdAlerts] = await Promise.all([
       queryErp(conn, `
         SELECT
           ALERT_ID,
@@ -42,7 +45,9 @@ export async function GET(req: NextRequest) {
           UNIT
         FROM M_ALERT_DEFINITIONS
         ORDER BY ALERT_CATEGORY, ALERT_NAME`),
+      getThresholdAlerts(conn),
     ])
+    const active = [...nativeAlerts, ...thresholdAlerts]
     const criticalCount = active.filter(a => Number(a.ALERT_RATING ?? 0) >= 5).length
     const warningCount = active.filter(a => Number(a.ALERT_RATING ?? 0) >= 3 && Number(a.ALERT_RATING ?? 0) < 5).length
 
@@ -53,6 +58,43 @@ export async function GET(req: NextRequest) {
       warningCount,
       at: new Date().toISOString(),
     }])
+
+    const now = new Date().toISOString()
+    const signals = active.map(alert => {
+      const message = String(alert.ALERT_DETAILS ?? alert.ALERT_ID)
+      return {
+        fingerprint: `${conn.id}:${String(alert.ALERT_ID)}:${message.slice(0, 120)}`,
+        connectionId: conn.id,
+        connectionName: conn.name,
+        severity: Number(alert.ALERT_RATING ?? 0) >= 5 ? 'critical' as const : Number(alert.ALERT_RATING ?? 0) >= 3 ? 'high' as const : 'medium' as const,
+        message,
+        source: 'database-alert',
+        firstSeen: now,
+        lastSeen: now,
+        status: 'firing' as const,
+      }
+    })
+    recordAlertSignals(signals)
+
+    const incidentsNow = loadIncidents()
+    for (const signal of signals.filter(item => item.severity === 'critical')) {
+      const alreadyOpen = incidentsNow.some(incident => incident.fingerprint === signal.fingerprint && incident.status !== 'resolved' && incident.status !== 'closed')
+      if (alreadyOpen) continue
+      const incident = createIncident({
+        title: `[Alert] ${signal.message.slice(0, 100)}`,
+        description: signal.message,
+        severity: 'critical',
+        status: 'open',
+        connectionId: signal.connectionId,
+        connectionName: signal.connectionName,
+        tags: ['alert', 'correlated'],
+        fingerprint: signal.fingerprint,
+        source: 'alert',
+        evidence: { alertFingerprint: signal.fingerprint, message: signal.message, capturedAt: now },
+      })
+      saveIncident(incident)
+      appendAudit({ actor: 'alert-engine', actorRole: 'system', action: 'create_incident', resource: 'incident', resourceId: incident.id, detail: signal.message, outcome: 'success' })
+    }
 
     // Fire Slack for new critical alerts (rating ≥ 5)
     if (criticalCount > 0) {

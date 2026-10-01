@@ -70,6 +70,15 @@ export interface ProcessTrends {
   last7d: ProcessTrendPoint[]
 }
 
+function connectionErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error)
+  if (/authentication|password|auth failed|access denied|invalid credentials/i.test(message)) return 'Authentication failed. Check username, password, and auth database.'
+  if (/timeout|timed out|ETIMEDOUT/i.test(message)) return 'Connection timed out. Check that the host and port are reachable.'
+  if (/ECONNREFUSED|connection refused/i.test(message)) return 'Connection refused. Check that the database service is running and the port is correct.'
+  if (/ENOTFOUND|getaddrinfo/i.test(message)) return 'Host not found. Check the hostname or IP address.'
+  return 'The database could not be reached. Check the connection settings and server logs.'
+}
+
 function baseSeed(conn: ErpConnection): number {
   const s = `${conn.id}:${conn.name}:${conn.environment}`
   let n = 0
@@ -186,6 +195,24 @@ async function pingHttpConnector(
   }
 }
 
+async function pingDatabase(conn: ErpConnection): Promise<ConnectorHealth> {
+  const checkedAt = new Date().toISOString()
+  const start = Date.now()
+  const dbType = conn.dbType ?? 'hana'
+  const endpoint = `${dbType}://${conn.host}:${conn.port}/${conn.database}`
+
+  try {
+    const rows = await queryErp(conn, 'SELECT * FROM M_DATABASE LIMIT 1', [], { throwOnError: true })
+    const latencyMs = Date.now() - start
+    if (rows.length > 0) {
+      return { type: conn.connectorType, status: 'connected', latencyMs, endpoint, checkedAt, message: `${dbType.toUpperCase()} database reachable` }
+    }
+    return { type: conn.connectorType, status: 'degraded', latencyMs, endpoint, checkedAt, message: `${dbType.toUpperCase()} database returned no health data` }
+  } catch (e) {
+    return { type: conn.connectorType, status: 'failed', latencyMs: Date.now() - start, endpoint, checkedAt, message: connectionErrorMessage(e) }
+  }
+}
+
 function buildProcesses(conn: ErpConnection, seed: number): ProcessKpi[] {
   return [
     {
@@ -276,6 +303,20 @@ export function getProcessTrends(conn: ErpConnection): Record<ProcessKpi['key'],
 }
 
 export async function getConnectorHealth(conn: ErpConnection): Promise<ConnectorHealth[]> {
+  if (conn.dbType && conn.dbType !== 'hana') {
+    const health = [await pingDatabase(conn)]
+    appendConnectorLatencySamples(
+      health.map(h => ({
+        connId: conn.id,
+        connectorType: h.type,
+        latencyMs: h.latencyMs,
+        status: h.status,
+        at: h.checkedAt,
+      }))
+    )
+    return health
+  }
+
   const seed = baseSeed(conn)
   const [odata, rfc, bapi] = await Promise.all([
     pingOData(conn),
@@ -324,7 +365,8 @@ export async function getModuleHealth(conn: ErpConnection, code?: string): Promi
 export async function queryErp(
   conn?: ErpConnection,
   query?: string,
-  _params?: unknown[]
+  _params?: unknown[],
+  options?: { throwOnError?: boolean }
 ): Promise<Record<string, unknown>[]> {
   if (!conn || !query) return []
 
@@ -356,6 +398,7 @@ export async function queryErp(
     return []
   } catch (e) {
     console.error(`[queryErp] ${conn.name} (${dbType}):`, (e as Error).message)
+    if (options?.throwOnError) throw e
     return []
   }
 }

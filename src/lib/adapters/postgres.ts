@@ -8,6 +8,11 @@ import { decryptPassword } from '../connection-store'
 
 type Row = Record<string, unknown>
 
+function queryLimit(sql: string, fallback = 20): number {
+  const match = sql.match(/\bLIMIT\s+(\d+)/i)
+  return Math.max(1, Math.min(Number(match?.[1] ?? fallback), 500))
+}
+
 const pools = new Map<string, Pool>()
 
 function getPool(conn: ErpConnection): Pool {
@@ -115,7 +120,7 @@ export async function queryPostgres(conn: ErpConnection, sql: string): Promise<R
                queryid::text AS STATEMENT_HASH
         FROM pg_stat_statements
         WHERE mean_exec_time > $1
-        ORDER BY mean_exec_time DESC LIMIT 20`, [minUs / 1000])
+        ORDER BY mean_exec_time DESC LIMIT ${queryLimit(sql)}`, [minUs / 1000])
       return r
     } catch {
       return []  // pg_stat_statements not enabled

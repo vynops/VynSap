@@ -8,6 +8,6 @@ module.exports = {
     autorestart: true,
     watch: false,
     max_memory_restart: '512M',
-    env: { NODE_ENV: 'production' },
+    env: { NODE_ENV: 'production', JWT_SECRET: 'c0cd6468fff94329c66721b9477cdc9d99e329b78f998742febe84812e04fad3' },
   }],
 }

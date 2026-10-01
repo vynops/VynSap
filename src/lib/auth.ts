@@ -1,10 +1,16 @@
 import { SignJWT, jwtVerify } from 'jose'
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
+import { findUserById } from './user-store'
 
-const SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET ?? 'vynsap-dev-secret-change-in-production'
-)
+const configuredSecret = process.env.JWT_SECRET
+
+function secret(): Uint8Array {
+  if (process.env.NODE_ENV === 'production' && !configuredSecret) {
+    throw new Error('JWT_SECRET must be configured in production')
+  }
+  return new TextEncoder().encode(configuredSecret ?? 'vynsap-dev-secret-change-in-production')
+}
 
 export type UserRole = 'admin' | 'editor' | 'viewer'
 
@@ -22,12 +28,12 @@ export async function signToken(user: SessionUser): Promise<string> {
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('8h')
-    .sign(SECRET)
+    .sign(secret())
 }
 
 export async function verifyToken(token: string): Promise<SessionUser | null> {
   try {
-    const { payload } = await jwtVerify(token, SECRET)
+    const { payload } = await jwtVerify(token, secret())
     return payload as unknown as SessionUser
   } catch {
     return null
@@ -47,6 +53,10 @@ export async function requireRole(
   const session = await getSession(req)
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  const currentUser = findUserById(session.id)
+  if (!currentUser || currentUser.active === false) {
+    return NextResponse.json({ error: 'This account has been deactivated' }, { status: 403 })
   }
   if (ROLE_RANK[session.role] < ROLE_RANK[minRole]) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })

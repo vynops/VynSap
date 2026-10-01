@@ -31,15 +31,15 @@ const NAV: NavItem[] = [
   { href: '/pp',            label: 'PP',               icon: Factory,          group: 'Modules' },
   { href: '/hcm',           label: 'HCM',              icon: UserRound,        group: 'Modules' },
   // Operations
-  { href: '/incidents',     label: 'Incidents',        icon: AlertTriangle,    group: 'Ops' },
-  { href: '/oncall',        label: 'On-Call',          icon: Phone,            group: 'Ops' },
-  { href: '/sla',           label: 'SLA Tracker',      icon: Timer,            group: 'Ops' },
-  { href: '/automation',    label: 'Automation',       icon: Terminal,         group: 'Ops' },
-  { href: '/autonomous',    label: 'Autonomous Ops',   icon: Brain,            group: 'Ops' },
-  { href: '/transport',     label: 'Transport Gov.',   icon: Package,          group: 'Ops' },
+  { href: '/incidents',     label: 'Incidents',        icon: AlertTriangle,    group: 'Operate' },
+  { href: '/oncall',        label: 'On-Call',          icon: Phone,             group: 'Operate' },
+  { href: '/sla',           label: 'SLA Tracker',      icon: Timer,             group: 'Operate' },
+  { href: '/copilot',       label: 'AI Copilot',       icon: Bot,              group: 'AIOps' },
+  { href: '/automation',    label: 'Automation',       icon: Terminal,         group: 'AIOps' },
+  { href: '/autonomous',    label: 'Autonomous Ops',   icon: Brain,            group: 'AIOps' },
+  { href: '/transport',     label: 'Transport Gov.',   icon: Package,          group: 'Operate' },
   // Platform
   { href: '/security',      label: 'Security',         icon: Shield,           group: 'Platform' },
-  { href: '/copilot',       label: 'AI Copilot',       icon: Bot,              group: 'Platform' },
   { href: '/audit',         label: 'Audit Log',        icon: ClipboardList,    group: 'Platform' },
 ]
 
@@ -82,7 +82,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
     router.refresh()
   }
 
-  const groups = ['System', 'Modules', 'Ops', 'Platform']
+  const groups = ['System', 'Modules', 'Operate', 'AIOps', 'Platform']
 
   return (
     <div className="flex flex-col h-full bg-[#0a1020] border-r border-slate-800/60">

@@ -31,5 +31,10 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   conn.lastChecked = new Date().toISOString()
   saveConnection(conn)
 
-  return NextResponse.json({ ok: conn.status === 'connected', conn })
+  const failedMessages = connectors.filter(c => c.status === 'failed').map(c => c.message)
+  return NextResponse.json({
+    ok: conn.status === 'connected',
+    message: failedMessages[0] ?? connectors[0]?.message ?? 'Connection check completed.',
+    conn,
+  })
 }

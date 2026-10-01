@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { loadConnections } from '@/lib/connection-store'
 import { queryErp } from '@/lib/erp-client'
+import { loadSettings } from '@/lib/settings-store'
 
 export async function GET(req: NextRequest) {
   const auth = await requireRole(req, 'viewer')
@@ -9,7 +10,8 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url)
   const connId = searchParams.get('connId')
-  const limit = Math.min(Number(searchParams.get('limit') ?? 100), 500)
+  const configuredLimit = loadSettings().maxExpensiveStatements ?? 100
+  const limit = Math.min(Number(searchParams.get('limit') ?? configuredLimit), 500)
   const conns = loadConnections().filter(c => !connId || c.id === connId)
 
   const all = await Promise.all(conns.map(async conn => {

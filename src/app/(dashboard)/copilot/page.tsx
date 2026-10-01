@@ -64,10 +64,11 @@ export default function CopilotPage() {
         body: JSON.stringify({ message: text, connId, history: nextHistory }),
       })
       const d = await res.json()
+      if (!res.ok) throw new Error(String(d.error ?? 'AI request failed'))
       setMessages(p => [...p, { role: 'assistant', content: d.reply ?? 'No response.' }])
       mutate()
-    } catch {
-      setMessages(p => [...p, { role: 'assistant', content: 'Network error — try again.' }])
+    } catch (error) {
+      setMessages(p => [...p, { role: 'assistant', content: `AI request failed: ${(error as Error).message}` }])
     } finally {
       setLoading(false)
     }
