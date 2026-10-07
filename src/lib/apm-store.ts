@@ -32,16 +32,24 @@ function write(state: ApmState): void {
   fs.writeFileSync(FILE, JSON.stringify(state, null, 2), 'utf8')
 }
 
-export function recordAlertSignals(signals: AlertSignal[]): void {
-  if (signals.length === 0) return
+export function recordAlertSignals(signals: AlertSignal[], connectionId?: string): void {
+  if (signals.length === 0 && !connectionId) return
   const state = read()
+  if (connectionId) {
+    for (const signal of state.alertSignals) {
+      if (signal.connectionId === connectionId && signal.status === 'firing' && !signals.some(active => active.fingerprint === signal.fingerprint)) {
+        signal.status = 'resolved'
+        signal.lastSeen = new Date().toISOString()
+      }
+    }
+  }
   const byFingerprint = new Map(state.alertSignals.map(signal => [signal.fingerprint, signal]))
   for (const signal of signals) {
     const existing = byFingerprint.get(signal.fingerprint)
     byFingerprint.set(signal.fingerprint, {
       ...existing,
       ...signal,
-      firstSeen: existing?.firstSeen ?? signal.firstSeen,
+      firstSeen: existing?.status === 'firing' ? existing.firstSeen : signal.firstSeen,
       lastSeen: signal.lastSeen,
     })
   }

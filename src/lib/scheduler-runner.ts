@@ -6,12 +6,13 @@ import { loadRules, loadRuns, addRun, newRunId } from './automation-store'
 import { loadConnections } from './connection-store'
 import { queryErp } from './erp-client'
 import { loadSettings } from './settings-store'
-import { notify } from './notifications'
+import { notify, pendingNotification } from './notifications'
 import { askCopilot, ERP_COPILOT_SYSTEM } from './copilot'
 import { loadProposals, saveProposal, newProposalId } from './autonomous-store'
 import type { AutomationRule } from './automation-store'
 import type { ProposalCategory } from './autonomous-store'
 import { appendAudit } from './audit-store'
+import { runAlertMonitor } from './alert-monitor'
 
 let started = false
 
@@ -91,21 +92,32 @@ async function fireRule(rule: AutomationRule, reason: string) {
   const startedAt = new Date().toISOString()
   try {
     if (rule.action.type === 'send_alert') {
-      await notify({ title: rule.name, body: reason, severity: 'high', source: 'Automation Scheduler' })
+      const accepted = await notify({ title: rule.name, body: reason, severity: 'high', source: 'Automation Scheduler', resourceId: runId })
+      if (!accepted.length) throw new Error('No notification channel configured')
     } else if (rule.action.type === 'webhook' && rule.action.webhookUrl) {
-      await fetch(rule.action.webhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'vynsap', ruleId: rule.id, ruleName: rule.name, reason, at: startedAt }), signal: AbortSignal.timeout(8000) })
+      const response = await fetch(rule.action.webhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'vynsap', ruleId: rule.id, ruleName: rule.name, reason, at: startedAt }), signal: AbortSignal.timeout(8000) })
+      if (!response.ok) throw new Error(`Webhook returned HTTP ${response.status}`)
     } else if (rule.action.type === 'create_incident') {
-      const { createIncident, saveIncident } = await import('./incident-store')
-      const inc = createIncident({ title: `[Auto] ${rule.name}`, description: reason, severity: 'high', status: 'open', tags: ['automation', 'scheduler'] })
-      saveIncident(inc)
+      const { createIncident, saveIncident, loadIncidents } = await import('./incident-store')
+      const fingerprint = `automation:${rule.id}:${rule.connectionId ?? 'all'}`
+      if (!loadIncidents().some(incident => incident.fingerprint === fingerprint && incident.status !== 'resolved' && incident.status !== 'closed')) {
+        const conn = loadConnections().find(connection => connection.id === rule.connectionId)
+        const inc = createIncident({ title: `[Auto] ${rule.name}`, description: reason, severity: 'high', status: 'open', tags: ['automation', 'scheduler'], source: 'automation', fingerprint, connectionId: conn?.id, connectionName: conn?.name, notification: pendingNotification() })
+        saveIncident(inc)
+        appendAudit({ actor: 'scheduler', actorRole: 'system', action: 'create_incident', resource: 'incident', resourceId: inc.id, outcome: 'success' })
+      }
     } else if (rule.action.type === 'run_sql' && rule.action.sql) {
       const conn = loadConnections().find(c => c.id === (rule.action.connectionId ?? rule.connectionId))
-      if (conn) await queryErp(conn, rule.action.sql)
+      if (!conn) throw new Error('Automation data source not found')
+      await queryErp(conn, rule.action.sql, undefined, { throwOnError: true })
+    } else {
+      throw new Error('Automation action is unsupported or incomplete')
     }
     addRun({ id: runId, ruleId: rule.id, ruleName: rule.name, status: 'success', startedAt, completedAt: new Date().toISOString(), output: reason })
     appendAudit({ actor: 'scheduler', actorRole: 'system', action: 'scheduler_fire', resource: 'automation-rule', resourceId: rule.id, detail: reason, outcome: 'success' })
   } catch (e) {
     addRun({ id: runId, ruleId: rule.id, ruleName: rule.name, status: 'failure', startedAt, completedAt: new Date().toISOString(), error: (e as Error).message })
+    appendAudit({ actor: 'scheduler', actorRole: 'system', action: 'scheduler_fire', resource: 'automation-rule', resourceId: rule.id, detail: 'Rule execution failed', outcome: 'failure' })
   }
 }
 
@@ -218,21 +230,31 @@ async function autoGenerateProposals() {
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 export function startScheduler() {
+  if (process.env.VYNSAP_MONITOR_ENABLED === 'false') return
   if (started) return
   started = true
 
-  // Initial poll immediately
-  void pollMetrics()
-
   const schedulePoll = async () => {
-    await pollMetrics()
-    await evaluateRules()
-    const intervalSec = Math.max(5, loadSettings().monitorIntervalSec ?? 60)
-    setTimeout(() => { void schedulePoll() }, intervalSec * 1000)
+    try {
+      await runAlertMonitor()
+      await pollMetrics()
+      await evaluateRules()
+    } catch {
+      console.error('[VynSAP Scheduler] Monitoring cycle failed; next cycle remains scheduled')
+    } finally {
+      const configured = Number(loadSettings().monitorIntervalSec ?? 60)
+      const intervalSec = Number.isFinite(configured) ? Math.max(5, configured) : 60
+      setTimeout(() => { void schedulePoll() }, intervalSec * 1000)
+    }
   }
   const scheduleProposals = async () => {
-    await autoGenerateProposals()
-    setTimeout(() => { void scheduleProposals() }, 10 * 60 * 1000)
+    try {
+      await autoGenerateProposals()
+    } catch {
+      console.error('[VynSAP Scheduler] Proposal cycle failed')
+    } finally {
+      setTimeout(() => { void scheduleProposals() }, 10 * 60 * 1000)
+    }
   }
 
   // Autonomous proposal generation every 10 minutes

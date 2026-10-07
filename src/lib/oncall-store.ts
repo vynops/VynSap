@@ -2,6 +2,8 @@ import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
 import { isDemoWorkspace } from './connection-store'
+import type { NotificationState } from './notifications'
+import { writeFileSync } from 'atomically'
 
 const FILE = path.join(process.cwd(), 'data', 'oncall.json')
 
@@ -27,6 +29,22 @@ export interface OncallSchedule {
   updatedAt?: string
 }
 
+export function validScheduleFields(body: Record<string, unknown>): boolean {
+  if (body.name !== undefined && (typeof body.name !== 'string' || !body.name.trim())) return false
+  if (body.rotation !== undefined && !['weekly', 'biweekly', 'daily', 'custom'].includes(String(body.rotation))) return false
+  for (const field of ['members', 'escalation']) {
+    const members = body[field]
+    if (members === undefined) continue
+    if (!Array.isArray(members) || members.some(member => !member ||
+      ['id', 'name', 'email', 'timezone'].some(key => typeof member[key] !== 'string' || !member[key].trim()) ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(member.email))) return false
+    if (new Set(members.map(member => member.id)).size !== members.length) return false
+  }
+  if (body.currentOnCall !== undefined && (typeof body.currentOnCall !== 'string' ||
+    (Array.isArray(body.members) && !body.members.some(member => member.id === body.currentOnCall)))) return false
+  return true
+}
+
 export interface OncallEscalation {
   id: string
   scheduleId: string
@@ -39,24 +57,29 @@ export interface OncallEscalation {
   resolved: boolean
   resolvedAt?: string
   resolvedBy?: string
+  recipientEmail?: string
+  notification?: NotificationState
 }
 
 function read(): { schedules: OncallSchedule[]; escalations: OncallEscalation[] } {
   try {
     const raw = JSON.parse(fs.readFileSync(FILE, 'utf8')) as unknown
     if (Array.isArray(raw)) return { schedules: [], escalations: [] }
-    if (!raw || typeof raw !== 'object') return { schedules: [], escalations: [] }
+    if (!raw || typeof raw !== 'object') throw new Error('Invalid on-call history')
     const obj = raw as { schedules?: unknown; escalations?: unknown }
+    if ((obj.schedules !== undefined && !Array.isArray(obj.schedules)) || (obj.escalations !== undefined && !Array.isArray(obj.escalations))) throw new Error('Invalid on-call history')
     return {
       schedules: Array.isArray(obj.schedules) ? obj.schedules as OncallSchedule[] : [],
       escalations: Array.isArray(obj.escalations) ? obj.escalations as OncallEscalation[] : [],
     }
-  } catch {
-    return { schedules: [], escalations: [] }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { schedules: [], escalations: [] }
+    throw error
   }
 }
 function write(data: { schedules: OncallSchedule[]; escalations: OncallEscalation[] }) {
-  fs.writeFileSync(FILE, JSON.stringify(data, null, 2), 'utf8')
+  fs.mkdirSync(path.dirname(FILE), { recursive: true })
+  writeFileSync(FILE, JSON.stringify(data, null, 2), 'utf8')
 }
 
 function demoData(): { schedules: OncallSchedule[]; escalations: OncallEscalation[] } {
@@ -189,6 +212,15 @@ export function resolveEscalation(id: string, by: string): OncallEscalation | nu
   data.escalations[idx] = updated
   write(data)
   return updated
+}
+
+export function saveEscalation(escalation: OncallEscalation) {
+  const data = read()
+  const index = data.escalations.findIndex(item => item.id === escalation.id)
+  if (index >= 0) {
+    data.escalations[index] = escalation
+    write(data)
+  }
 }
 
 export function newScheduleId(): string { return `oncall-${crypto.randomUUID().slice(0, 8)}` }

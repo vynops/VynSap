@@ -380,24 +380,24 @@ export async function queryErp(
   try {
     if (dbType === 'postgres') {
       const { queryPostgres } = await import('./adapters/postgres')
-      return queryPostgres(conn, query)
+      return await queryPostgres(conn, query)
     }
     if (dbType === 'mysql') {
       const { queryMySQL } = await import('./adapters/mysql')
-      return queryMySQL(conn, query)
+      return await queryMySQL(conn, query)
     }
     if (dbType === 'redis') {
       const { queryRedis } = await import('./adapters/redis')
-      return queryRedis(conn, query)
+      return await queryRedis(conn, query)
     }
     if (dbType === 'mongodb') {
       const { queryMongoDB } = await import('./adapters/mongodb')
-      return queryMongoDB(conn, query)
+      return await queryMongoDB(conn, query)
     }
-    // hana: real HANA HTTP client would go here — return empty until connected
+    if (options?.throwOnError) throw new Error('No supported telemetry adapter is configured')
     return []
   } catch (e) {
-    console.error(`[queryErp] ${conn.name} (${dbType}):`, (e as Error).message)
+    console.error('[queryErp] Telemetry query failed')
     if (options?.throwOnError) throw e
     return []
   }

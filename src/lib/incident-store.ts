@@ -2,6 +2,8 @@ import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
 import { isDemoWorkspace, loadConnections } from './connection-store'
+import type { NotificationState } from './notifications'
+import { writeFileSync } from 'atomically'
 
 const FILE = path.join(process.cwd(), 'data', 'incidents.json')
 
@@ -20,7 +22,8 @@ export interface Incident {
   tags: string[]
   fingerprint?: string
   source?: 'manual' | 'alert' | 'automation' | 'ai'
-  evidence?: { alertFingerprint?: string; message?: string; capturedAt?: string }
+  evidence?: { alertFingerprint?: string; message?: string; capturedAt?: string; alertActive?: boolean }
+  notification?: NotificationState
   timeline: { at: string; by: string; note: string }[]
   createdAt: string
   updatedAt: string
@@ -28,10 +31,18 @@ export interface Incident {
 }
 
 function read(): Incident[] {
-  try { return JSON.parse(fs.readFileSync(FILE, 'utf8')) } catch { return [] }
+  try {
+    const list = JSON.parse(fs.readFileSync(FILE, 'utf8'))
+    if (!Array.isArray(list)) throw new Error('Invalid incident history')
+    return list
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
+    throw error
+  }
 }
 function write(list: Incident[]) {
-  fs.writeFileSync(FILE, JSON.stringify(list, null, 2), 'utf8')
+  fs.mkdirSync(path.dirname(FILE), { recursive: true })
+  writeFileSync(FILE, JSON.stringify(list, null, 2), 'utf8')
 }
 
 function demoIncidents(): Incident[] {

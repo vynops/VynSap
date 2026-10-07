@@ -58,10 +58,10 @@ export async function requireRole(
   if (!currentUser || currentUser.active === false) {
     return NextResponse.json({ error: 'This account has been deactivated' }, { status: 403 })
   }
-  if (ROLE_RANK[session.role] < ROLE_RANK[minRole]) {
+  if (!ROLE_RANK[currentUser.role] || ROLE_RANK[currentUser.role] < ROLE_RANK[minRole]) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
-  return session
+  return { id: currentUser.id, name: currentUser.name, email: currentUser.email, role: currentUser.role }
 }
 
 export function hashPassword(plain: string): string {

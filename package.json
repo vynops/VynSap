@@ -7,9 +7,12 @@
     "build": "next build",
     "start": "next start -p 3080",
     "lint": "eslint",
+    "test:incidents": "tsx --test scripts/incident-management.test.ts",
+    "test:incidents:http": "node scripts/incident-http-e2e.mjs",
     "smoke:report": "node scripts/smoke-report.mjs"
   },
   "dependencies": {
+    "atomically": "^2.1.1",
     "clsx": "^2.1.1",
     "groq-sdk": "^0.13.0",
     "ioredis": "^5.6.1",

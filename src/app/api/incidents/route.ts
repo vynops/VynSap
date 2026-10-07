@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { loadIncidents, saveIncident, createIncident } from '@/lib/incident-store'
+import { appendAudit } from '@/lib/audit-store'
+import { pendingNotification } from '@/lib/notifications'
 import crypto from 'crypto'
 
 function severityImpact(severity: string): number {
@@ -120,9 +122,15 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const auth = await requireRole(req, 'editor')
   if (auth instanceof NextResponse) return auth
-  const body = await req.json()
+  const body = await req.json().catch(() => null)
+  if (!body || typeof body !== 'object' || Array.isArray(body) || typeof body.title !== 'string' || !body.title.trim() ||
+      (body.severity !== undefined && !['critical', 'high', 'medium', 'low'].includes(body.severity)) ||
+      (body.tags !== undefined && (!Array.isArray(body.tags) || body.tags.some((tag: unknown) => typeof tag !== 'string'))) ||
+      ['description', 'connectionId', 'connectionName', 'assignee'].some(field => body[field] !== undefined && typeof body[field] !== 'string')) {
+    return NextResponse.json({ error: 'Invalid incident fields' }, { status: 400 })
+  }
   const inc = createIncident({
-    title: body.title,
+    title: body.title.trim(),
     description: body.description ?? '',
     severity: body.severity ?? 'medium',
     status: 'open',
@@ -130,7 +138,11 @@ export async function POST(req: NextRequest) {
     connectionName: body.connectionName,
     assignee: body.assignee,
     tags: body.tags ?? [],
+    source: 'manual',
+    notification: pendingNotification(),
   })
+  inc.timeline[0].by = auth.name
   saveIncident(inc)
+  appendAudit({ actor: auth.name, actorRole: auth.role, action: 'create_incident', resource: 'incident', resourceId: inc.id, outcome: 'success' })
   return NextResponse.json(inc, { status: 201 })
 }

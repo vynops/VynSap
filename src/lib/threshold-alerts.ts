@@ -17,7 +17,7 @@ function rating(value: number, threshold: number): number {
   return value >= threshold * 1.1 ? 5 : 3
 }
 
-export async function getThresholdAlerts(conn: ErpConnection): Promise<ThresholdAlert[]> {
+export async function getThresholdAlerts(conn: ErpConnection, options?: { throwOnError?: boolean }): Promise<ThresholdAlert[]> {
   const settings = loadSettings()
   const cpuThreshold = settings.alertThresholdCpuPct ?? 85
   const memThreshold = settings.alertThresholdMemPct ?? 90
@@ -25,10 +25,10 @@ export async function getThresholdAlerts(conn: ErpConnection): Promise<Threshold
   const replicationThreshold = settings.alertThresholdReplicationLagSec ?? 10
 
   const [cpuRows, memoryRows, diskRows, replicationRows] = await Promise.all([
-    queryErp(conn, 'SELECT ROUND(100 - IDLE_CPU_PCT, 1) AS CPU_USED_PCT FROM M_HOST_RESOURCE_UTILIZATION'),
-    queryErp(conn, 'SELECT USED_GB, LIMIT_GB, MEM_USED_GB, MEM_LIMIT_GB FROM M_HOST_RESOURCE_UTILIZATION'),
-    queryErp(conn, 'SELECT USED_PCT FROM M_DISK_USAGE'),
-    queryErp(conn, 'SELECT REPLICATION_DELAY_MS FROM M_SERVICE_REPLICATION'),
+    queryErp(conn, 'SELECT ROUND(100 - IDLE_CPU_PCT, 1) AS CPU_USED_PCT FROM M_HOST_RESOURCE_UTILIZATION', undefined, options),
+    queryErp(conn, 'SELECT USED_GB, LIMIT_GB, MEM_USED_GB, MEM_LIMIT_GB FROM M_HOST_RESOURCE_UTILIZATION', undefined, options),
+    queryErp(conn, 'SELECT USED_PCT FROM M_DISK_USAGE', undefined, options),
+    queryErp(conn, 'SELECT REPLICATION_DELAY_MS FROM M_SERVICE_REPLICATION', undefined, options),
   ])
 
   const now = new Date().toISOString()
