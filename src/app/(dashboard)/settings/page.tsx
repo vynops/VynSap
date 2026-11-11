@@ -8,11 +8,11 @@ import { cn } from '@/lib/utils'
 const fetcher = (url: string) => fetch(url).then(r => r.json())
 
 const AI_PROVIDERS = [
-  { id: 'groq', label: 'Groq (Recommended)', keyLabel: 'Groq API Key', placeholder: 'gsk_…', defaultModel: 'openai/gpt-oss-120b', models: [{ value: 'openai/gpt-oss-120b', label: 'GPT OSS 120B' }, { value: 'openai/gpt-oss-20b', label: 'GPT OSS 20B (Fast)' }, { value: 'groq/compound', label: 'Groq Compound' }, { value: 'groq/compound-mini', label: 'Groq Compound Mini' }] },
-  { id: 'openai', label: 'OpenAI', keyLabel: 'OpenAI API Key', placeholder: 'sk-…', defaultModel: 'gpt-4o-mini', models: [{ value: 'gpt-4o', label: 'GPT-4o' }, { value: 'gpt-4o-mini', label: 'GPT-4o Mini' }, { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' }] },
-  { id: 'anthropic', label: 'Anthropic (Claude)', keyLabel: 'Claude API Key', placeholder: 'sk-ant-…', defaultModel: 'claude-3-5-sonnet-latest', models: [{ value: 'claude-3-5-sonnet-latest', label: 'Claude 3.5 Sonnet' }, { value: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku' }] },
-  { id: 'google', label: 'Google (Gemini)', keyLabel: 'Gemini API Key', placeholder: 'AIza…', defaultModel: 'gemini-2.0-flash', models: [{ value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' }, { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' }] },
-  { id: 'custom', label: 'Custom / Self-Hosted', keyLabel: 'API Key', placeholder: 'your-api-key', defaultModel: 'your-model-id', models: [] },
+  { id: 'groq', label: 'Groq (Recommended)', keyLabel: 'Groq API Key', placeholder: 'gsk_…', defaultModel: 'openai/gpt-oss-120b' },
+  { id: 'openai', label: 'OpenAI', keyLabel: 'OpenAI API Key', placeholder: 'sk-…', defaultModel: 'gpt-4o-mini' },
+  { id: 'anthropic', label: 'Anthropic (Claude)', keyLabel: 'Claude API Key', placeholder: 'sk-ant-…', defaultModel: 'claude-3-5-sonnet-latest' },
+  { id: 'google', label: 'Google (Gemini)', keyLabel: 'Gemini API Key', placeholder: 'AIza…', defaultModel: 'gemini-2.0-flash' },
+  { id: 'custom', label: 'Custom / Self-Hosted', keyLabel: 'API Key', placeholder: 'your-api-key', defaultModel: 'your-model-id' },
 ]
 
 type TestKind = 'groq' | 'openai' | 'anthropic' | 'google' | 'custom' | 'email' | 'slack' | 'teams' | 'webhook'
@@ -50,13 +50,10 @@ export default function SettingsPage() {
       const providerId = data.aiProvider ?? 'groq'
       const provider = AI_PROVIDERS.find(item => item.id === providerId) ?? AI_PROVIDERS[0]
       const configuredModel = String(data.aiModel ?? '')
-      const model = provider.models.length > 0 && !provider.models.some(item => item.value === configuredModel)
-        ? provider.defaultModel
-        : configuredModel || provider.defaultModel
       setForm({
         ...data,
         aiProvider: provider.id,
-        aiModel: model,
+        aiModel: configuredModel || provider.defaultModel,
       })
     }
   }, [data])
@@ -135,7 +132,7 @@ export default function SettingsPage() {
         { key: 'aiProvider', label: 'AI Provider', type: 'select', options: AI_PROVIDERS.map(provider => ({ value: provider.id, label: provider.label })) },
         { key: 'aiApiKey', label: currentProvider.keyLabel, type: 'password', placeholder: currentProvider.placeholder },
         ...(currentProvider.id === 'custom' ? [{ key: 'aiBaseUrl', label: 'API Base URL', type: 'text' as const, placeholder: 'https://ai.internal/v1' }] : []),
-        ...(currentProvider.models.length > 0 ? [{ key: 'aiModel', label: 'AI Model', type: 'select' as const, options: currentProvider.models }] : [{ key: 'aiModel', label: 'AI Model ID', type: 'text' as const, placeholder: currentProvider.defaultModel }]),
+        { key: 'aiModel', label: 'AI Model ID', type: 'text', placeholder: currentProvider.defaultModel },
       ],
     },
     {
