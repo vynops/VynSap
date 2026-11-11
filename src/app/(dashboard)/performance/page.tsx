@@ -1,20 +1,22 @@
 'use client'
 
 import useSWR from 'swr'
+import Link from 'next/link'
 import { Activity, Cpu, MemoryStick, HardDrive, Wifi } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
 
 const fetcher = (url: string) => fetch(url).then(r => r.json())
 
-function MetricCard({ label, value, unit, max, color = 'blue', icon: Icon }: {
+function MetricCard({ label, value, unit, max, color = 'blue', icon: Icon, href }: {
   label: string; value: number; unit?: string; max?: number; color?: string
   icon: React.ComponentType<{ className?: string }>
+  href?: string
 }) {
   const pct = max ? Math.min(100, Math.round((value / max) * 100)) : null
   const barColor = pct === null ? 'bg-blue-500' : pct >= 90 ? 'bg-red-500' : pct >= 75 ? 'bg-yellow-500' : 'bg-blue-500'
-  return (
-    <div className="rounded-2xl bg-[#0f1629] border border-slate-800 p-5">
+  const content = (
+    <div className="rounded-2xl bg-[#0f1629] border border-slate-800 p-5 transition-colors hover:border-blue-500/50">
       <div className="flex items-center gap-2 mb-3">
         <Icon className={`w-4 h-4 text-${color}-400`} />
         <span className="text-xs font-bold text-slate-400">{label}</span>
@@ -32,6 +34,7 @@ function MetricCard({ label, value, unit, max, color = 'blue', icon: Icon }: {
       )}
     </div>
   )
+  return href ? <Link href={href} aria-label={`Open ${label} details`} className="block rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400">{content}</Link> : content
 }
 
 export default function PerformancePage() {
@@ -63,20 +66,24 @@ export default function PerformancePage() {
               label="CPU Usage" icon={Cpu} color="orange"
               value={Number(r.cpu?.CPU_USED_PCT ?? 0)} unit="%"
               max={100}
+              href="/services"
             />
             <MetricCard
                 label="ERP DB Memory" icon={MemoryStick} color="blue"
               value={Number(r.memory?.ERP_USED_GB ?? 0)} unit="GB"
               max={Number(r.memory?.MEM_LIMIT_GB ?? 1)}
+                href="/memory"
             />
             <MetricCard
               label="Physical Memory" icon={MemoryStick} color="cyan"
               value={Number(r.memory?.MEM_USED_GB ?? 0)} unit="GB"
               max={Number(r.memory?.MEM_LIMIT_GB ?? 1)}
+              href="/memory"
             />
             <MetricCard
               label="Connections" icon={Wifi} color="purple"
               value={Number(r.connections?.TOTAL_CONN ?? 0)} unit="total"
+              href="/services"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">

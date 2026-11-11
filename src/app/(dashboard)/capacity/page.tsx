@@ -1,6 +1,7 @@
 'use client'
 
 import useSWR from 'swr'
+import { useState } from 'react'
 import { BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
@@ -9,6 +10,7 @@ const fetcher = (url: string) => fetch(url).then(r => r.json())
 
 export default function CapacityPage() {
   const { data, isLoading } = useSWR('/api/capacity', fetcher, { refreshInterval: 60000 })
+  const [sortByUsage, setSortByUsage] = useState(false)
   const rows = Array.isArray(data) ? data : []
 
   return (
@@ -31,7 +33,8 @@ export default function CapacityPage() {
       }) => {
         const disk = r.disk ?? []
         const volumes = r.volumes ?? []
-        const chartData = disk.map(d => ({
+        const visibleDisk = sortByUsage ? [...disk].sort((a, b) => Number(b.USED_PCT ?? 0) - Number(a.USED_PCT ?? 0)) : disk
+        const chartData = visibleDisk.map(d => ({
           name: `${String(d.USAGE_TYPE).slice(0, 10)} ${String(d.HOST).split('.')[0]}`,
           total: Number(d.TOTAL_GB ?? 0),
           used: Number(d.USED_GB ?? 0),
@@ -43,12 +46,12 @@ export default function CapacityPage() {
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide">{r.connName}</h3>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+              <button type="button" onClick={() => setSortByUsage(true)} aria-pressed={sortByUsage} aria-label="Sort disk areas by highest usage" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${sortByUsage ? 'ring-1 ring-blue-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-blue-500/50">
                 <div className={cn('text-xl font-black', Number(r.kpis?.peakUsedPct ?? 0) >= 90 ? 'text-red-400' : Number(r.kpis?.peakUsedPct ?? 0) >= 75 ? 'text-yellow-400' : 'text-emerald-400')}>
                   {Number(r.kpis?.peakUsedPct ?? 0).toFixed(1)}%
                 </div>
                 <div className="text-xs text-slate-500">Peak Usage</div>
-              </div>
+              </div></button>
               <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
                 <div className="text-xl font-black text-blue-400">{Number(r.kpis?.dailyGrowthPct ?? 0).toFixed(2)}%</div>
                 <div className="text-xs text-slate-500">Daily Growth</div>
@@ -86,9 +89,10 @@ export default function CapacityPage() {
             )}
 
             {/* Disk table */}
-            <div className="rounded-2xl bg-[#0f1629] border border-slate-800 overflow-hidden">
+            <div id={`disk-areas-${r.connId}`} className="rounded-2xl bg-[#0f1629] border border-slate-800 overflow-hidden scroll-mt-6">
               <div className="px-4 py-3 border-b border-slate-800">
                 <span className="text-xs font-bold text-slate-400">Disk Areas (M_DISK_USAGE)</span>
+                {sortByUsage && <button type="button" onClick={() => setSortByUsage(false)} className="ml-3 text-[10px] text-blue-400 hover:underline">Clear sort</button>}
               </div>
               <table className="w-full text-xs">
                 <thead>
@@ -102,7 +106,7 @@ export default function CapacityPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/50">
-                  {disk.map((d, i) => {
+                  {visibleDisk.map((d, i) => {
                     const pct = Number(d.USED_PCT ?? 0)
                     return (
                       <tr key={i} className="hover:bg-slate-800/20">

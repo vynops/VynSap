@@ -27,9 +27,13 @@ interface AuditEntry {
 export default function AuditPage() {
   const { data } = useSWR<AuditEntry[]>('/api/audit?limit=200', fetcher, { refreshInterval: 30000 })
   const [filter, setFilter] = useState('')
+  const [outcomeFilter, setOutcomeFilter] = useState<'all' | 'success' | 'failure'>('all')
 
   const entries = Array.isArray(data) ? data : []
-  const filtered = filter ? entries.filter(e => e.action.includes(filter) || e.actor.includes(filter) || e.resource.includes(filter)) : entries
+  const filtered = entries.filter(e =>
+    (outcomeFilter === 'all' || e.outcome === outcomeFilter) &&
+    (!filter || e.action.includes(filter) || e.actor.includes(filter) || e.resource.includes(filter))
+  )
   const successCount = entries.filter(e => e.outcome === 'success').length
   const failureCount = entries.filter(e => e.outcome === 'failure').length
 
@@ -44,20 +48,25 @@ export default function AuditPage() {
         {[{ label: 'Total Events', value: entries.length, color: 'text-white', Icon: ClipboardList },
           { label: 'Successful', value: successCount, color: 'text-emerald-400', Icon: CheckCircle2 },
           { label: 'Failures', value: failureCount, color: 'text-red-400', Icon: XCircle },
-          { label: 'Actors', value: new Set(entries.map(e => e.actor)).size, color: 'text-blue-400', Icon: ClipboardList }].map(({ label, value, color, Icon }) => (
-          <div key={label} className="rounded-2xl bg-[#0f1629] border border-slate-800 p-5">
+          { label: 'Actors', value: new Set(entries.map(e => e.actor)).size, color: 'text-blue-400', Icon: ClipboardList }].map(({ label, value, color, Icon }) => {
+          const targetOutcome = label === 'Successful' ? 'success' : label === 'Failures' ? 'failure' : 'all'
+          return label === 'Actors' ? <div key={label} className="rounded-2xl bg-[#0f1629] border border-slate-800 p-5">
             <Icon className={cn('w-5 h-5 mb-3', color)} />
             <div className={cn('text-2xl font-black', color)}>{value}</div>
             <div className="text-xs text-slate-500 mt-0.5 font-medium">{label}</div>
-          </div>
-        ))}
+          </div> : <button key={label} type="button" onClick={() => setOutcomeFilter(targetOutcome)} aria-pressed={outcomeFilter === targetOutcome} aria-label={label === 'Total Events' ? 'Show all audit events' : `Filter to ${label.toLowerCase()} audit events`} className={`block w-full text-left rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${outcomeFilter === targetOutcome ? 'ring-1 ring-blue-500/60' : ''}`}><div className="rounded-2xl bg-[#0f1629] border border-slate-800 p-5 transition-colors hover:border-blue-500/50">
+            <Icon className={cn('w-5 h-5 mb-3', color)} />
+            <div className={cn('text-2xl font-black', color)}>{value}</div>
+            <div className="text-xs text-slate-500 mt-0.5 font-medium">{label}</div>
+          </div></button>
+        })}
       </div>
 
       <div>
         <input value={filter} onChange={e => setFilter(e.target.value)} placeholder="Filter by action, actor, or resource…" className="w-full max-w-xs bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500" />
       </div>
 
-      <div className="rounded-2xl bg-[#0f1629] border border-slate-800 overflow-hidden">
+      <div id="audit-entries" className="rounded-2xl bg-[#0f1629] border border-slate-800 overflow-hidden scroll-mt-6">
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
@@ -72,7 +81,7 @@ export default function AuditPage() {
             </thead>
             <tbody>
               {filtered.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">No audit entries yet.</td></tr>
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">No {outcomeFilter === 'all' ? '' : `${outcomeFilter} `}audit entries match.</td></tr>
               )}
               {filtered.map(e => (
                 <tr key={e.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">

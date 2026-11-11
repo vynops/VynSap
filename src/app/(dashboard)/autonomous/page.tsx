@@ -25,12 +25,16 @@ const STATUS_COLOR: Record<string, string> = {
 export default function AutonomousPage() {
   const { data, mutate } = useSWR('/api/autonomous', fetcher)
   const [generating, setGenerating] = useState(false)
-  const [filter, setFilter] = useState('all')
+  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'applied' | 'failed' | 'high-impact'>('all')
   const [workingId, setWorkingId] = useState<string | null>(null)
   const [error, setError] = useState('')
 
   const proposals = Array.isArray(data) ? data : []
-  const filtered = proposals.filter((p: { status: string }) => filter === 'all' || p.status === filter)
+  const filtered = proposals.filter((p: { status: string; impact: string }) =>
+    filter === 'all' || (filter === 'high-impact'
+      ? p.impact === 'critical' || p.impact === 'high'
+      : p.status === filter)
+  )
   const pendingCount = proposals.filter((p: { status: string }) => p.status === 'pending').length
   const approvedCount = proposals.filter((p: { status: string }) => p.status === 'approved').length
   const appliedCount = proposals.filter((p: { status: string }) => p.status === 'applied').length
@@ -84,14 +88,14 @@ export default function AutonomousPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-white">Autonomous Ops</h2>
           <p className="text-sm text-slate-400 mt-0.5">AI-generated optimization proposals for SAP ERP databases</p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex gap-1 bg-slate-800/40 rounded-lg p-1">
-            {['all', 'pending', 'approved', 'applied'].map(s => (
+          <div className="flex flex-wrap gap-1 bg-slate-800/40 rounded-lg p-1">
+            {(['all', 'pending', 'approved', 'applied', 'failed', 'high-impact'] as const).map(s => (
               <button key={s} onClick={() => setFilter(s)}
                 className={cn('px-2.5 py-1 text-xs font-semibold rounded-md transition-colors capitalize',
                   filter === s ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
@@ -107,27 +111,29 @@ export default function AutonomousPage() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        <button type="button" onClick={() => setFilter('pending')} aria-pressed={filter === 'pending'} aria-label="Filter to pending proposals" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${filter === 'pending' ? 'ring-1 ring-yellow-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-yellow-500/50">
           <div className="text-xl font-black text-yellow-400">{pendingCount}</div>
           <div className="text-xs text-slate-500">Pending</div>
-        </div>
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        </div></button>
+        <button type="button" onClick={() => setFilter('approved')} aria-pressed={filter === 'approved'} aria-label="Filter to approved proposals" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${filter === 'approved' ? 'ring-1 ring-blue-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-blue-500/50">
           <div className="text-xl font-black text-blue-400">{approvedCount}</div>
           <div className="text-xs text-slate-500">Approved</div>
-        </div>
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        </div></button>
+        <button type="button" onClick={() => setFilter('applied')} aria-pressed={filter === 'applied'} aria-label="Filter to applied proposals" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${filter === 'applied' ? 'ring-1 ring-emerald-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-emerald-500/50">
           <div className="text-xl font-black text-emerald-400">{appliedCount}</div>
           <div className="text-xs text-slate-500">Applied</div>
-        </div>
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        </div></button>
+        <button type="button" onClick={() => setFilter('failed')} aria-pressed={filter === 'failed'} aria-label="Filter to failed proposals" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${filter === 'failed' ? 'ring-1 ring-red-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-red-500/50">
           <div className={cn('text-xl font-black', failedCount > 0 ? 'text-red-400' : 'text-slate-300')}>{failedCount}</div>
           <div className="text-xs text-slate-500">Failed</div>
-        </div>
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        </div></button>
+        <button type="button" onClick={() => setFilter('high-impact')} aria-pressed={filter === 'high-impact'} aria-label="Filter to high impact proposals" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${filter === 'high-impact' ? 'ring-1 ring-orange-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-orange-500/50">
           <div className="text-xl font-black text-orange-400">{highImpact}</div>
           <div className="text-xs text-slate-500">High Impact</div>
-        </div>
+        </div></button>
       </div>
+
+      <p className="text-xs text-slate-500" aria-live="polite">Showing {filtered.length} of {proposals.length} proposals{filter === 'all' ? '' : ` · ${filter === 'high-impact' ? 'high impact' : filter}`}</p>
 
       {error && (
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 px-3 py-2 text-xs">
@@ -136,12 +142,12 @@ export default function AutonomousPage() {
       )}
 
       {filtered.length === 0 ? (
-        <div className="rounded-2xl bg-[#0f1629] border border-slate-800 p-10 text-center">
+        <div id="proposal-list" className="rounded-2xl bg-[#0f1629] border border-slate-800 p-10 text-center scroll-mt-6">
           <Brain className="w-10 h-10 text-slate-700 mx-auto mb-3" />
-                <p className="text-slate-500 text-sm">No proposals yet. Click "Generate Proposals" to analyze your ERP systems.</p>
+                <p className="text-slate-500 text-sm">{proposals.length === 0 ? 'No proposals yet. Click "Generate Proposals" to analyze your ERP systems.' : `No ${filter === 'high-impact' ? 'high impact' : filter} proposals.`}</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div id="proposal-list" className="space-y-3 scroll-mt-6">
           {filtered.map((p: {
             id: string; title: string; description: string; category: string
             impact: string; effort: string; status: string; expectedGain: string

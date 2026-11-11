@@ -1,6 +1,7 @@
 'use client'
 
 import useSWR from 'swr'
+import { useState } from 'react'
 import { Timer, CheckCircle2, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -8,9 +9,16 @@ const fetcher = (url: string) => fetch(url).then(r => r.json())
 
 export default function SLAPage() {
   const { data, isLoading } = useSWR('/api/sla', fetcher, { refreshInterval: 60000 })
+  const [slaView, setSlaView] = useState<'all' | 'breached' | 'lowest-uptime' | 'highest-mttr'>('all')
   const target = data?.target ?? 99.9
   const entries = data?.entries ?? []
   const summary = data?.summary ?? { systems: entries.length, breaches: 0, globalUptime: 100, avgMttrMin: 0 }
+  const visibleEntries = [...entries]
+    .filter((entry: { breached: boolean }) => slaView !== 'breached' || entry.breached)
+    .sort((a: { uptimePct: number; mttrMin: number }, b: { uptimePct: number; mttrMin: number }) =>
+      slaView === 'lowest-uptime' ? a.uptimePct - b.uptimePct :
+      slaView === 'highest-mttr' ? b.mttrMin - a.mttrMin : 0
+    )
 
   const breached = entries.filter((e: { breached: boolean }) => e.breached).length
 
@@ -27,31 +35,35 @@ export default function SLAPage() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        <button type="button" onClick={() => setSlaView('all')} aria-pressed={slaView === 'all'} aria-label="Show all tracked systems" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${slaView === 'all' ? 'ring-1 ring-blue-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-blue-500/50">
           <div className="text-xl font-black text-white">{summary.systems}</div>
           <div className="text-xs text-slate-500">Tracked Systems</div>
-        </div>
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        </div></button>
+        <button type="button" onClick={() => setSlaView('breached')} aria-pressed={slaView === 'breached'} aria-label="Filter to systems breaching SLA" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${slaView === 'breached' ? 'ring-1 ring-red-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-red-500/50">
           <div className={cn('text-xl font-black', summary.breaches > 0 ? 'text-red-400' : 'text-emerald-400')}>{summary.breaches}</div>
           <div className="text-xs text-slate-500">Breaches</div>
-        </div>
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        </div></button>
+        <button type="button" onClick={() => setSlaView('lowest-uptime')} aria-pressed={slaView === 'lowest-uptime'} aria-label="Sort systems by lowest uptime" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${slaView === 'lowest-uptime' ? 'ring-1 ring-blue-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-blue-500/50">
           <div className="text-xl font-black text-blue-400">{Number(summary.globalUptime ?? 0).toFixed(3)}%</div>
           <div className="text-xs text-slate-500">Global Uptime</div>
-        </div>
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        </div></button>
+        <button type="button" onClick={() => setSlaView('highest-mttr')} aria-pressed={slaView === 'highest-mttr'} aria-label="Sort systems by highest MTTR" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${slaView === 'highest-mttr' ? 'ring-1 ring-yellow-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-yellow-500/50">
           <div className="text-xl font-black text-yellow-400">{summary.avgMttrMin}m</div>
           <div className="text-xs text-slate-500">Avg MTTR</div>
-        </div>
+        </div></button>
       </div>
 
+      {slaView !== 'all' && <div className="flex items-center justify-between text-xs text-slate-500"><span>{slaView === 'breached' ? `Showing ${visibleEntries.length} breached systems` : slaView === 'lowest-uptime' ? 'Sorted by lowest uptime' : 'Sorted by highest MTTR'}</span><button type="button" onClick={() => setSlaView('all')} className="text-blue-400 hover:underline">Clear filter</button></div>}
+
       {isLoading ? (
-        <div className="text-slate-600 text-sm py-8 text-center">Loading SLA data…</div>
+        <div id="system-sla-list" className="text-slate-600 text-sm py-8 text-center scroll-mt-6">Loading SLA data…</div>
       ) : entries.length === 0 ? (
-        <div className="text-slate-500 text-sm py-8 text-center">No ERP system connections configured.</div>
+        <div id="system-sla-list" className="text-slate-500 text-sm py-8 text-center scroll-mt-6">No ERP system connections configured.</div>
+      ) : visibleEntries.length === 0 ? (
+        <div id="system-sla-list" className="text-slate-500 text-sm py-8 text-center scroll-mt-6">No systems match this SLA filter.</div>
       ) : (
-        <div className="space-y-3">
-          {entries.map((e: {
+        <div id="system-sla-list" className="space-y-3 scroll-mt-6">
+          {visibleEntries.map((e: {
             connId: string; connName: string; environment: string
             uptimePct: number; targetPct: number; breached: boolean
             incidentCount: number; downtimeMin: number; openIncidents: number

@@ -22,6 +22,7 @@ interface CopilotHistoryEntry {
 export default function CopilotPage() {
   const { data: conns } = useSWR('/api/connections', fetcher)
   const { data: copilotData, mutate } = useSWR('/api/copilot', fetcher)
+  const [historyView, setHistoryView] = useState<'all' | 'recent' | 'tokens'>('all')
   const [connId, setConnId] = useState('')
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -29,6 +30,10 @@ export default function CopilotPage() {
 
   const connList = Array.isArray(conns) ? conns : []
   const history: CopilotHistoryEntry[] = Array.isArray(copilotData?.history) ? copilotData.history : []
+  const visibleHistory = history
+    .filter(item => historyView !== 'recent' || Date.now() - new Date(item.createdAt).getTime() <= 24 * 3600 * 1000)
+    .slice()
+    .sort((a, b) => historyView === 'tokens' ? b.totalTokens - a.totalTokens : 0)
   const usage = copilotData?.usage ?? {
     totalPrompts: 0,
     promptTokens: 0,
@@ -110,22 +115,22 @@ export default function CopilotPage() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        <button type="button" onClick={() => setHistoryView('all')} aria-pressed={historyView === 'all'} aria-label="Show all prompt history" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${historyView === 'all' ? 'ring-1 ring-blue-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-blue-500/50">
           <div className="text-xl font-black text-blue-400">{usage.totalPrompts}</div>
           <div className="text-xs text-slate-500">Prompts</div>
-        </div>
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        </div></button>
+        <button type="button" onClick={() => setHistoryView('recent')} aria-pressed={historyView === 'recent'} aria-label="Filter prompts from the last 24 hours" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${historyView === 'recent' ? 'ring-1 ring-cyan-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-cyan-500/50">
           <div className="text-xl font-black text-cyan-400">{usage.prompts24h}</div>
           <div className="text-xs text-slate-500">Prompts (24h)</div>
-        </div>
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        </div></button>
+        <button type="button" onClick={() => setHistoryView('tokens')} aria-pressed={historyView === 'tokens'} aria-label="Sort prompt history by token use" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${historyView === 'tokens' ? 'ring-1 ring-purple-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-purple-500/50">
           <div className="text-xl font-black text-purple-400">{usage.totalTokens.toLocaleString()}</div>
           <div className="text-xs text-slate-500">Total Tokens</div>
-        </div>
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        </div></button>
+        <button type="button" onClick={() => setHistoryView('tokens')} aria-pressed={historyView === 'tokens'} aria-label="Sort prompt history by token use" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${historyView === 'tokens' ? 'ring-1 ring-emerald-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-emerald-500/50">
           <div className="text-xl font-black text-emerald-400">{usage.avgTokensPerPrompt}</div>
           <div className="text-xs text-slate-500">Avg Tokens/Prompt</div>
-        </div>
+        </div></button>
       </div>
 
       <div className="grid flex-1 min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -168,20 +173,21 @@ export default function CopilotPage() {
         )}
       </div>
 
-      <div className="mb-4 flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-800 bg-[#0f1629] lg:mb-0">
+      <div id="prompt-history" className="mb-4 flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-800 bg-[#0f1629] scroll-mt-6 lg:mb-0">
         <div className="flex items-center gap-2 border-b border-slate-800 px-4 py-3">
           <History className="h-4 w-4 text-slate-400" />
           <span className="text-xs font-bold text-slate-400">Prompt History</span>
-          <span className="ml-auto text-[10px] text-slate-600">{history.length} saved</span>
+          <span className="ml-auto text-[10px] text-slate-600">{visibleHistory.length} of {history.length} saved</span>
         </div>
+        {historyView !== 'all' && <div className="flex justify-end border-b border-slate-800 px-4 py-2"><button type="button" onClick={() => setHistoryView('all')} className="text-[10px] text-blue-400 hover:underline">Clear filter</button></div>}
         <div className="grid grid-cols-2 gap-px border-b border-slate-800 bg-slate-800/60 text-[10px] text-slate-500">
           <div className="px-4 py-2">Prompt tokens: {usage.promptTokens.toLocaleString()}</div>
           <div className="px-4 py-2">Completion tokens: {usage.completionTokens.toLocaleString()}</div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto divide-y divide-slate-800/60">
-          {history.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-slate-500">No saved prompt history yet.</div>
-          ) : history.map(item => (
+          {visibleHistory.length === 0 ? (
+            <div className="px-4 py-8 text-center text-sm text-slate-500">{history.length === 0 ? 'No saved prompt history yet.' : 'No prompts match this view.'}</div>
+          ) : visibleHistory.map(item => (
             <div key={item.id} className="px-4 py-3">
               <div className="mb-1 flex items-center gap-2 text-[10px] text-slate-600">
                 <Sigma className="h-3 w-3" />

@@ -1,6 +1,7 @@
 'use client'
 
 import useSWR from 'swr'
+import Link from 'next/link'
 import { useState } from 'react'
 import { Database, Plus, X, Loader2, Trash2, RefreshCw, CheckCircle2, XCircle, Edit2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -29,13 +30,14 @@ function StatusBadge({ status }: { status: string }) {
 
 export default function TenantsPage() {
   const { data, isLoading, mutate } = useSWR('/api/connections', fetcher)
+  const [connectionView, setConnectionView] = useState<'all' | 'stale' | 'connected' | 'oldest'>('all')
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState({
     name: '',
-    dbType: 'hana',
+    dbType: 'sap-odata',
     connectorType: 'odata',
-    endpointUrl: 'https://erp-host.example.com/sap/opu/odata',
+    endpointUrl: 'https://erp-host.example.com/sap/opu/odata/sap/SERVICE_NAME',
     host: '',
     port: '',
     database: '',
@@ -47,7 +49,7 @@ export default function TenantsPage() {
     password: '',
     ssl: true,
     sslValidateCert: true,
-    environment: 'production',
+    environment: 'test',
     notes: '',
   })
   const [saving, setSaving] = useState(false)
@@ -58,14 +60,19 @@ export default function TenantsPage() {
   const lagValues = conns.map(c => Number(c.freshnessLagMins)).filter(v => Number.isFinite(v))
   const avgLag = lagValues.length === 0 ? null : lagValues.reduce((n, x) => n + x, 0) / lagValues.length
   const staleCount = conns.filter(c => c.freshnessState === 'stale').length
+  const visibleConnections = conns
+    .filter(conn => connectionView !== 'stale' || conn.freshnessState === 'stale')
+    .filter(conn => connectionView !== 'connected' || conn.status === 'connected')
+    .slice()
+    .sort((a, b) => connectionView === 'oldest' ? Number(b.freshnessLagMins ?? 0) - Number(a.freshnessLagMins ?? 0) : 0)
 
   function openAdd() {
     setEditingId(null)
     setShowModal(true)
     setForm({
-      name: '', dbType: 'hana', connectorType: 'odata', endpointUrl: 'https://erp-host.example.com/sap/opu/odata',
+      name: '', dbType: 'sap-odata', connectorType: 'odata', endpointUrl: 'https://erp-host.example.com/sap/opu/odata/sap/SERVICE_NAME',
       host: '', port: '', database: '', sapClient: '100', systemNumber: '00', language: 'EN', authType: 'basic',
-      username: 'ERP_API_USER', password: '', ssl: true, sslValidateCert: true, environment: 'production', notes: '',
+      username: 'ERP_API_USER', password: '', ssl: true, sslValidateCert: true, environment: 'test', notes: '',
     })
   }
 
@@ -143,38 +150,42 @@ export default function TenantsPage() {
 
       {/* Connection list */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        <button type="button" onClick={() => setConnectionView('all')} aria-pressed={connectionView === 'all'} aria-label="Show all ERP connections" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${connectionView === 'all' ? 'ring-1 ring-blue-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-blue-500/50">
           <div className="text-xl font-black text-white">{conns.length}</div>
           <div className="text-xs text-slate-500">Connectors</div>
-        </div>
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        </div></button>
+        <button type="button" onClick={() => setConnectionView('oldest')} aria-pressed={connectionView === 'oldest'} aria-label="Sort connections by oldest sample" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${connectionView === 'oldest' ? 'ring-1 ring-blue-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-blue-500/50">
           <div className={cn('text-xl font-black', (avgLag ?? 0) > 30 ? 'text-red-400' : (avgLag ?? 0) > 5 ? 'text-yellow-400' : 'text-emerald-400')}>
             {avgLag == null ? 'N/A' : `${avgLag.toFixed(1)}m`}
           </div>
           <div className="text-xs text-slate-500">Avg Freshness Lag</div>
-        </div>
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        </div></button>
+        <button type="button" onClick={() => setConnectionView('stale')} aria-pressed={connectionView === 'stale'} aria-label="Filter to stale connections" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${connectionView === 'stale' ? 'ring-1 ring-red-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-red-500/50">
           <div className={cn('text-xl font-black', staleCount > 0 ? 'text-red-400' : 'text-emerald-400')}>{staleCount}</div>
           <div className="text-xs text-slate-500">Stale Connectors</div>
-        </div>
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        </div></button>
+        <button type="button" onClick={() => setConnectionView('connected')} aria-pressed={connectionView === 'connected'} aria-label="Filter to connected systems" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${connectionView === 'connected' ? 'ring-1 ring-emerald-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-blue-500/50">
           <div className="text-xl font-black text-blue-400">{conns.filter(c => c.status === 'connected').length}</div>
           <div className="text-xs text-slate-500">Connected</div>
-        </div>
+        </div></button>
       </div>
 
+      {connectionView !== 'all' && <div className="flex items-center justify-between text-xs text-slate-500"><span>{connectionView === 'stale' ? `Showing ${visibleConnections.length} stale connections` : connectionView === 'connected' ? `Showing ${visibleConnections.length} connected systems` : 'Sorted by oldest sample first'}</span><button type="button" onClick={() => setConnectionView('all')} className="text-blue-400 hover:underline">Clear filter</button></div>}
+
       {isLoading ? (
-        <div className="flex items-center gap-2 text-slate-500 py-8 justify-center">
+        <div id="connection-list" className="flex items-center gap-2 text-slate-500 py-8 justify-center scroll-mt-6">
           <Loader2 className="w-4 h-4 animate-spin" /><span>Loading…</span>
         </div>
       ) : conns.length === 0 ? (
-        <div className="rounded-2xl bg-[#0f1629] border border-slate-800 p-10 text-center">
+        <div id="connection-list" className="rounded-2xl bg-[#0f1629] border border-slate-800 p-10 text-center scroll-mt-6">
           <Database className="w-10 h-10 text-slate-700 mx-auto mb-3" />
           <p className="text-slate-500">No connections yet. Add your first ERP system.</p>
         </div>
+      ) : visibleConnections.length === 0 ? (
+        <div id="connection-list" className="rounded-2xl bg-[#0f1629] border border-slate-800 p-8 text-center text-sm text-slate-500 scroll-mt-6">No connections match this filter.</div>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {conns.map(conn => {
+        <div id="connection-list" className="grid gap-4 lg:grid-cols-2 scroll-mt-6">
+          {visibleConnections.map(conn => {
             return (
               <div key={conn.id} className="rounded-2xl bg-[#0f1629] border border-slate-800 p-5">
                 <div className="flex items-start justify-between mb-3">
@@ -255,10 +266,11 @@ export default function TenantsPage() {
                     placeholder="Production ERP OData Gateway" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Data Source</label>
-                  <select value={form.dbType} onChange={e => f('dbType', e.target.value)}
+                  <label className="block text-xs font-semibold text-slate-400 mb-1">Source Type</label>
+                  <select value={form.dbType} onChange={e => setForm(p => ({ ...p, dbType: e.target.value, connectorType: e.target.value === 'sap-odata' ? 'odata' : p.connectorType }))}
                     className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
-                    <option value="hana">SAP / HANA</option>
+                    <option value="sap-odata">SAP Application (OData)</option>
+                    <option value="hana">HANA database</option>
                     <option value="postgres">PostgreSQL</option>
                     <option value="mysql">MySQL</option>
                     <option value="redis">Redis</option>
@@ -267,7 +279,7 @@ export default function TenantsPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-1">Connector Type *</label>
-                  <select value={form.connectorType} onChange={e => f('connectorType', e.target.value)}
+                  <select value={form.connectorType} onChange={e => f('connectorType', e.target.value)} disabled={form.dbType === 'sap-odata'}
                     className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
                     <option value="odata">OData</option>
                     <option value="rfc">RFC</option>
@@ -288,7 +300,7 @@ export default function TenantsPage() {
                   <label className="block text-xs font-semibold text-slate-400 mb-1">Endpoint URL</label>
                   <input value={form.endpointUrl} onChange={e => f('endpointUrl', e.target.value)}
                     className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
-                    placeholder="https://erp-host.example.com/sap/opu/odata" />
+                    placeholder="https://erp-host.example.com/sap/opu/odata/sap/SERVICE_NAME" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-1">Host</label>

@@ -10,6 +10,7 @@ const fetcher = (url: string) => fetch(url).then(r => r.json())
 export default function QueriesPage() {
   const { data, isLoading } = useSWR('/api/queries', fetcher, { refreshInterval: 30000 })
   const [filter, setFilter] = useState('')
+  const [sortByExecutions, setSortByExecutions] = useState(false)
   const rows = Array.isArray(data) ? data : []
 
   return (
@@ -41,6 +42,9 @@ export default function QueriesPage() {
           !filter || String(q.SQL_TEXT ?? '').toLowerCase().includes(filter.toLowerCase()) ||
           String(q.USER_NAME ?? '').toLowerCase().includes(filter.toLowerCase())
         )
+        const orderedQueries = [...filtered].sort((a, b) => sortByExecutions
+          ? Number(b.EXECUTION_COUNT ?? 0) - Number(a.EXECUTION_COUNT ?? 0)
+          : Number(b.TOTAL_SEC ?? 0) - Number(a.TOTAL_SEC ?? 0))
         return (
           <div key={r.connId} className="space-y-4">
             <div className="flex items-center justify-between">
@@ -51,9 +55,14 @@ export default function QueriesPage() {
               {[
                 { label: 'Cache Hit Rate', value: `${hitRate}%`, color: 'text-emerald-400' },
                 { label: 'Cache Size', value: `${Number(pc.CACHE_SIZE_MB ?? 0).toFixed(0)} MB`, color: 'text-blue-400' },
-                { label: 'Total Executions', value: Number(st.TOTAL_EXECUTIONS ?? 0).toLocaleString(), color: 'text-white' },
+                { label: 'Total Executions', value: Number(st.TOTAL_EXECUTIONS ?? 0).toLocaleString(), color: 'text-white', sortable: true },
                 { label: 'Unique Statements', value: Number(st.UNIQUE_STATEMENTS ?? 0).toLocaleString(), color: 'text-slate-300' },
-              ].map(s => (
+              ].map(s => s.sortable ? (
+                <button key={s.label} type="button" onClick={() => setSortByExecutions(value => !value)} aria-pressed={sortByExecutions} aria-label="Sort SQL rows by execution count" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${sortByExecutions ? 'ring-1 ring-blue-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-blue-500/50">
+                  <div className={cn('text-xl font-black', s.color)}>{s.value}</div>
+                  <div className="text-xs text-slate-500 mt-1">{s.label}</div>
+                </div></button>
+              ) : (
                 <div key={s.label} className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
                   <div className={cn('text-xl font-black', s.color)}>{s.value}</div>
                   <div className="text-xs text-slate-500 mt-1">{s.label}</div>
@@ -61,10 +70,10 @@ export default function QueriesPage() {
               ))}
             </div>
 
-            <div className="rounded-2xl bg-[#0f1629] border border-slate-800 overflow-hidden">
+            <div id={`top-queries-${r.connId}`} className="rounded-2xl bg-[#0f1629] border border-slate-800 overflow-hidden scroll-mt-6">
               <div className="px-4 py-3 border-b border-slate-800">
-                <span className="text-xs font-bold text-slate-400">Top SQL by CPU Time</span>
-                <span className="ml-2 text-[10px] text-slate-600">{filtered.length} statements</span>
+                <span className="text-xs font-bold text-slate-400">Top SQL by {sortByExecutions ? 'Execution Count' : 'CPU Time'}</span>
+                <span className="ml-2 text-[10px] text-slate-600">{orderedQueries.length} statements</span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
@@ -80,7 +89,7 @@ export default function QueriesPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/50">
-                    {filtered.slice(0, 50).map((q, i) => (
+                    {orderedQueries.slice(0, 50).map((q, i) => (
                       <tr key={i} className="hover:bg-slate-800/20">
                         <td className="px-4 py-2 max-w-xs">
                           <div className="font-mono text-slate-300 truncate text-[10px]" title={String(q.SQL_TEXT ?? '')}>

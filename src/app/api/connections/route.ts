@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import {
-  loadConnections, saveConnection, newConnectionId, encryptPassword, ErpConnection
+  loadConnections, saveConnection, newConnectionId, encryptPassword, ErpConnection, toPublicConnection
 } from '@/lib/connection-store'
 import { getConnectorHealth } from '@/lib/erp-client'
 
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
       ? Math.max(0, Math.round((now - checked) / 60000))
       : null
     return {
-      ...conn,
+      ...toPublicConnection(conn),
       freshnessLagMins,
       freshnessState: freshnessLagMins === null
         ? 'unknown'
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   const parsed = endpointUrl ? parseEndpoint(endpointUrl) : { host: '', port: 0 }
 
   const conn: ErpConnection = {
-    dbType: body.dbType ?? 'hana',
+    dbType: body.dbType ?? 'sap-odata',
     id: newConnectionId(),
     name: body.name,
     connectorType: body.connectorType ?? 'odata',
@@ -89,5 +89,5 @@ export async function POST(req: NextRequest) {
   }
   conn.lastChecked = new Date().toISOString()
   saveConnection(conn)
-  return NextResponse.json(conn, { status: 201 })
+  return NextResponse.json(toPublicConnection(conn), { status: 201 })
 }

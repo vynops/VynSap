@@ -29,35 +29,10 @@ Built on **Next.js 16 App Router**, VynSAP connects to SAP systems via OData, RF
 
 ---
 
-## Screenshots
-
-| | |
-|---|---|
-| [![Login](screenshots/login.png)](screenshots/login.png)<br>Login | [![ERP overview](screenshots/erp-overview.png)](screenshots/erp-overview.png)<br>ERP overview |
-| [![Process trends](screenshots/process-trends.png)](screenshots/process-trends.png)<br>Process trends and module health | [![ERP connections](screenshots/erp-connections.png)](screenshots/erp-connections.png)<br>ERP connections |
-| [![Connector health](screenshots/connector-health.png)](screenshots/connector-health.png)<br>RFC, BAPI, and OData connector health | [![Alert center](screenshots/alert-center.png)](screenshots/alert-center.png)<br>Alert center |
-| [![SLA tracker](screenshots/sla-tracker.png)](screenshots/sla-tracker.png)<br>SLA tracker | [![Automation](screenshots/automation.png)](screenshots/automation.png)<br>Background job automation |
-| [![Autonomous ops](screenshots/autonomous-ops.png)](screenshots/autonomous-ops.png)<br>Autonomous operations | [![AI copilot](screenshots/ai-copilot.png)](screenshots/ai-copilot.png)<br>AI copilot |
-| [![Audit log](screenshots/audit-log.png)](screenshots/audit-log.png)<br>System audit log | [![Team management](screenshots/team-management.png)](screenshots/team-management.png)<br>Team management |
-
----
-
-## Screenshots
-
-| | |
-|---|---|
-| [![Login](screenshots/login.png)](screenshots/login.png)<br>Login | [![ERP overview](screenshots/erp-overview.png)](screenshots/erp-overview.png)<br>ERP overview |
-| [![Process trends](screenshots/process-trends.png)](screenshots/process-trends.png)<br>Process trends and module health | [![ERP connections](screenshots/erp-connections.png)](screenshots/erp-connections.png)<br>ERP connections |
-| [![Connector health](screenshots/connector-health.png)](screenshots/connector-health.png)<br>RFC, BAPI, and OData connector health | [![Alert center](screenshots/alert-center.png)](screenshots/alert-center.png)<br>Alert center |
-| [![SLA tracker](screenshots/sla-tracker.png)](screenshots/sla-tracker.png)<br>SLA tracker | [![Automation](screenshots/automation.png)](screenshots/automation.png)<br>Background job automation |
-| [![Autonomous ops](screenshots/autonomous-ops.png)](screenshots/autonomous-ops.png)<br>Autonomous operations | [![AI copilot](screenshots/ai-copilot.png)](screenshots/ai-copilot.png)<br>AI copilot |
-| [![Audit log](screenshots/audit-log.png)](screenshots/audit-log.png)<br>System audit log | [![Team management](screenshots/team-management.png)](screenshots/team-management.png)<br>Team management |
-
----
-
 ## Table of Contents
 
 - [Features](#features)
+- [Screenshots](#screenshots)
 - [Architecture](#architecture)
 - [Demo Mode](#demo-mode)
 - [Requirements](#requirements)
@@ -170,6 +145,19 @@ Each module dashboard shows: availability %, failed transactions, queue backlog,
 
 ---
 
+## Screenshots
+
+| | |
+|---|---|
+| [![Login](screenshots/login.png)](screenshots/login.png)<br>Login | [![ERP overview](screenshots/erp-overview.png)](screenshots/erp-overview.png)<br>ERP overview |
+| [![Process trends](screenshots/process-trends.png)](screenshots/process-trends.png)<br>Process trends and module health | [![ERP connections](screenshots/erp-connections.png)](screenshots/erp-connections.png)<br>ERP connections |
+| [![Connector health](screenshots/connector-health.png)](screenshots/connector-health.png)<br>RFC, BAPI, and OData connector health | [![Alert center](screenshots/alert-center.png)](screenshots/alert-center.png)<br>Alert center |
+| [![SLA tracker](screenshots/sla-tracker.png)](screenshots/sla-tracker.png)<br>SLA tracker | [![Automation](screenshots/automation.png)](screenshots/automation.png)<br>Background job automation |
+| [![Autonomous ops](screenshots/autonomous-ops.png)](screenshots/autonomous-ops.png)<br>Autonomous operations | [![AI copilot](screenshots/ai-copilot.png)](screenshots/ai-copilot.png)<br>AI copilot |
+| [![Audit log](screenshots/audit-log.png)](screenshots/audit-log.png)<br>System audit log | [![Team management](screenshots/team-management.png)](screenshots/team-management.png)<br>Team management |
+
+---
+
 ## Architecture
 
 ```
@@ -259,16 +247,24 @@ cd VynSAP
 # 2. Install dependencies
 npm install
 
-# 3. Configure environment
+# 3. Optional environment overrides
 cp .env.local.example .env.local
 ```
 
-Edit `.env.local` — minimum required values:
+No `.env.local` file is required. VynSAP generates random JWT and connection-encryption secrets on first use and saves them in the ignored `data/.secrets.json` file. To override the bootstrap admin or configure integrations, copy the example file (`Copy-Item .env.local.example .env.local` in Windows PowerShell) and set only the values you need.
 
 ```env
-AUTH_SECRET=<output of: openssl rand -base64 32>
-GROQ_API_KEY=gsk_...          # free at https://console.groq.com
+# Optional secret overrides; generated and persisted automatically when omitted.
+# JWT_SECRET=<unique random secret>
+# CONNECTION_ENCRYPTION_KEY=<different unique random secret>
+# Optional bootstrap admin overrides:
+# VYNSAP_ADMIN_EMAIL=admin@your-company.example
+# VYNSAP_ADMIN_PASSWORD=<unique initial password>
+# Optional: enables AI Copilot and AI-assisted features
+# GROQ_API_KEY=
 ```
+
+If you set secret overrides, generate them with `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"`. Generate a separate value for each secret. Do not commit `.env.local`.
 
 ```bash
 # 4. Start VynSAP
@@ -276,14 +272,14 @@ npm run dev
 # → http://localhost:3080
 ```
 
-**Default credentials:**
+When no admin exists, the first login creates this bootstrap account unless the `VYNSAP_ADMIN_*` variables override it:
 
 | Field | Value |
 |-------|-------|
 | Email | `admin@vynsap.local` |
 | Password | `changeme` |
 
-> ⚠️ Change the default password immediately via **Settings → Team**.
+The account is marked for a password change, and VynSAP blocks access to the rest of the app until a new password is set. Because `changeme` is a known default, override the bootstrap credentials before exposing a production instance to the internet. Bootstrap settings only affect the first admin and do not reset an existing account.
 
 ---
 
@@ -292,6 +288,9 @@ npm run dev
 ```bash
 # Install PM2 globally
 npm install -g pm2
+
+# Install project dependencies
+npm install
 
 # Build the application
 npm run build
@@ -311,19 +310,24 @@ pm2 restart vynsap
 
 ## Configuration
 
-All configuration lives in `.env.local`. Settings that can be changed at runtime are stored in `data/settings.json` and editable via **Settings** in the UI.
+Optional configuration overrides live in `.env.local`. Random secrets are generated and saved to `data/.secrets.json` on first use. Settings that can be changed at runtime are stored in `data/settings.json` and editable via **Settings** in the UI.
+
+A fresh install starts in demo mode; it does not provision or connect to a real SAP system. Add a real SAP endpoint and credentials manually after signing in. Runtime files under `data/*.json` are ignored by Git. If any were already committed in another checkout, remove them from Git tracking before publishing; `.gitignore` does not untrack existing files.
 
 ### Authentication
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `AUTH_SECRET` | ✅ | Session encryption key. Generate: `openssl rand -base64 32` |
+| `JWT_SECRET` | Optional override | Automatically generated and persisted on first use if omitted. |
+| `CONNECTION_ENCRYPTION_KEY` | Optional override | Automatically generated and persisted on first use if omitted. Keep the stored key stable so existing credentials remain decryptable. |
+| `VYNSAP_ADMIN_EMAIL` | Optional override | Email for the first admin; defaults to `admin@vynsap.local`. |
+| `VYNSAP_ADMIN_PASSWORD` | Optional override | Initial password; defaults to `changeme` and must be changed before app access. |
 
 ### AI
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `GROQ_API_KEY` | ✅ | — | Groq API key — free tier at [console.groq.com](https://console.groq.com) |
+| `GROQ_API_KEY` | ❌ | — | Optional Groq API key for AI Copilot and AI-assisted features — free tier at [console.groq.com](https://console.groq.com) |
 | `GROQ_MODEL` | ❌ | `llama-3.3-70b-versatile` | Groq model for AI Copilot and autonomous proposals |
 
 > The active AI model can also be set at runtime via **Settings → AI Model** without a server restart.
@@ -718,7 +722,7 @@ All endpoints require authentication (valid `vs_token` cookie). Admin-only endpo
 ### App won't start
 
 - Verify Node.js 20+: `node --version`
-- Ensure `AUTH_SECRET` is set in `.env.local`
+- Ensure `JWT_SECRET` is set in `.env.local` for production
 - Run `npm install` to make sure all dependencies are present
 - Check port 3080 is free: `lsof -i :3080` (macOS/Linux) or `netstat -ano | findstr 3080` (Windows)
 
@@ -772,23 +776,16 @@ Contributions are welcome. Please:
 
 ---
 
-## Part of the VynOps Suite
-
-| Product | Purpose | Repo |
-|---|---|---|
-| **VynOps** | Kubernetes operations platform | [vynops/VynOps](https://github.com/vynops/VynOps) |
-| **VynAI** | Ollama fleet manager and AI gateway | [vynops/VynAI](https://github.com/vynops/VynAI) |
-| **VynCost** | Cloud cost visibility | [vynops/VynCost](https://github.com/vynops/VynCost) |
-| **VynDB** | Database operations | [vynops/VynDB](https://github.com/vynops/VynDB) |
-| **VynDC** | Data center management | [vynops/VynDC](https://github.com/vynops/VynDC) |
-| **VynCICD** | CI/CD pipeline management | [vynops/VynCICD](https://github.com/vynops/VynCICD) |
-| **VynHana** | SAP HANA Database management | [vynops/VynHANA](https://github.com/vynops/VynHANA) |
-| **VynSAP** | SAP ERP management | [vynops/VynSAP](https://github.com/vynops/VynSAP) |
-
----
 ## License
 
 MIT — see [LICENSE](LICENSE) for details.
 
 ---
 
+<div align="center">
+
+Part of the **[VynOps](https://vynops.online)** open-source operations platform family.
+
+[VynOps](https://github.com/vynops/VynOps) · [VynHana](https://github.com/vynops/VynHana) · [VynDB](https://github.com/vynops/VynDB) · [VynAI](https://github.com/vynops/VynAI) · **VynSAP**
+
+</div>

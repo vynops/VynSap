@@ -5,7 +5,7 @@ import path from 'node:path'
 import http from 'node:http'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { randomBytes } from 'node:crypto'
+import { randomBytes, scryptSync } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 import { SignJWT } from 'jose'
 
@@ -17,7 +17,9 @@ fs.mkdirSync(data)
 const write = (name, value) => fs.writeFileSync(path.join(data, `${name}.json`), JSON.stringify(value))
 const read = (name, fallback = []) => { try { return JSON.parse(fs.readFileSync(path.join(data, `${name}.json`), 'utf8')) } catch { return fallback } }
 const secret = randomBytes(32).toString('hex')
-const users = ['admin', 'editor', 'viewer'].map(role => ({ id: `http-${role}`, name: `HTTP ${role}`, email: `${role}@example.invalid`, role, active: true, passwordHash: 'unused', createdAt: new Date().toISOString() }))
+const loginPassword = 'verification-password'
+const loginSalt = randomBytes(16).toString('hex')
+const users = ['admin', 'editor', 'viewer'].map(role => ({ id: `http-${role}`, name: `HTTP ${role}`, email: `${role}@example.invalid`, role, active: true, passwordHash: role === 'admin' ? `${loginSalt}:${scryptSync(loginPassword, loginSalt, 32).toString('hex')}` : 'unused', createdAt: new Date().toISOString() }))
 const tokens = Object.fromEntries(await Promise.all(users.map(async user => [user.role, await new SignJWT({ id: user.id, name: user.name, email: user.email, role: user.role }).setProtectedHeader({ alg: 'HS256' }).setIssuedAt().setExpirationTime('1h').sign(new TextEncoder().encode(secret))])))
 const checks = []
 const deliveries = []
@@ -97,6 +99,17 @@ try {
   const api = (pathname, method = 'GET', body, role = 'admin') => fetch(`${appUrl}${pathname}`, {
     method, redirect: 'manual', headers: { 'Content-Type': 'application/json', ...(role ? { Cookie: `vs_token=${tokens[role]}` } : {}) }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   })
+  assert.equal((await api('/api/auth/login', 'POST', { email: 'admin@example.invalid', password: 'wrong-password' }, null)).status, 401)
+  const login = await api('/api/auth/login', 'POST', { email: 'admin@example.invalid', password: loginPassword }, null)
+  assert.equal(login.status, 200)
+  const loginCookie = login.headers.get('set-cookie')?.split(';', 1)[0]
+  assert.ok(loginCookie)
+  assert.equal((await fetch(`${appUrl}/api/auth/logout`, { method: 'POST', headers: { Cookie: loginCookie } })).status, 200)
+  const authAudit = await (await api('/api/audit?actor=admin%40example.invalid')).json()
+  assert.ok(authAudit.some(entry => entry.action === 'login_failure' && entry.outcome === 'failure' && entry.resourceId === 'http-admin'))
+  assert.ok(authAudit.some(entry => entry.action === 'login_success' && entry.outcome === 'success' && entry.resourceId === 'http-admin'))
+  assert.ok(authAudit.some(entry => entry.action === 'logout' && entry.outcome === 'success' && entry.resourceId === 'http-admin'))
+  checks.push('per-user login success, failed login and logout audit events')
   assert.equal((await api('/api/incidents', 'GET', undefined, null)).status, 401)
   assert.equal((await api('/api/incidents', 'POST', { title: 'Denied' }, 'viewer')).status, 403)
   for (const invalid of [null, [], {}, { title: '' }, { title: 'Invalid', severity: 'invalid' }]) assert.equal((await api('/api/incidents', 'POST', invalid, 'editor')).status, 400)

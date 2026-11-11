@@ -2,6 +2,7 @@
 
 import useSWR from 'swr'
 import { useState } from 'react'
+import Link from 'next/link'
 import { Terminal, Plus, X, Loader2, Play, ToggleLeft, ToggleRight, Trash2, ChevronDown, ChevronRight, History } from 'lucide-react'
 import { cn, timeAgo } from '@/lib/utils'
 
@@ -11,6 +12,7 @@ export default function AutomationPage() {
   const { data, mutate } = useSWR('/api/automation', fetcher)
   const { data: conns } = useSWR('/api/connections', fetcher)
   const [showAdd, setShowAdd] = useState(false)
+  const [ruleView, setRuleView] = useState<'all' | 'enabled' | 'recent' | 'successful' | 'failed'>('all')
   const [form, setForm] = useState({
     name: '', description: '', triggerType: 'schedule', actionType: 'run_sql',
     cronExpr: '0 2 * * *', sql: '', webhookUrl: '', connectionId: '', connectionName: '',
@@ -26,6 +28,15 @@ export default function AutomationPage() {
   const run24h = Number(stats.runs24h ?? runs.filter((r: { startedAt: string }) => Date.now() - new Date(r.startedAt).getTime() < 24 * 3600 * 1000).length)
   const successRate = Number(stats.successRate24h ?? (run24h > 0 ? Math.round((runs.filter((r: { status: string; startedAt: string }) => r.status === 'success' && Date.now() - new Date(r.startedAt).getTime() < 24 * 3600 * 1000).length / run24h) * 100) : 100))
   const rollbackRate = Number(stats.rollbackRate24h ?? 0)
+  const recentRuns = runs.filter((run: { startedAt: string }) => Date.now() - new Date(run.startedAt).getTime() < 24 * 3600 * 1000)
+  const visibleRules = rules.filter((rule: { id: string; enabled: boolean }) => {
+    const ruleRuns = recentRuns.filter((run: { ruleId: string }) => run.ruleId === rule.id)
+    if (ruleView === 'enabled') return rule.enabled
+    if (ruleView === 'recent') return ruleRuns.length > 0
+    if (ruleView === 'successful') return ruleRuns.some((run: { status: string }) => run.status === 'success')
+    if (ruleView === 'failed') return ruleRuns.some((run: { status: string }) => run.status === 'failure' || run.status === 'failed')
+    return true
+  })
 
   function runDuration(startedAt: string, completedAt: string) {
     const ms = Math.max(0, new Date(completedAt).getTime() - new Date(startedAt).getTime())
@@ -116,22 +127,22 @@ export default function AutomationPage() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        <button type="button" onClick={() => setRuleView('enabled')} aria-pressed={ruleView === 'enabled'} aria-label="Filter to enabled automation rules" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${ruleView === 'enabled' ? 'ring-1 ring-emerald-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-emerald-500/50">
           <div className="text-xl font-black text-emerald-400">{stats.enabled}</div>
           <div className="text-xs text-slate-500">Enabled Rules</div>
-        </div>
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        </div></button>
+        <button type="button" onClick={() => setRuleView('recent')} aria-pressed={ruleView === 'recent'} aria-label="Filter to rules run in the last 24 hours" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${ruleView === 'recent' ? 'ring-1 ring-blue-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-blue-500/50">
           <div className="text-xl font-black text-blue-400">{run24h}</div>
           <div className="text-xs text-slate-500">Runs (24h)</div>
-        </div>
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        </div></button>
+        <button type="button" onClick={() => setRuleView('successful')} aria-pressed={ruleView === 'successful'} aria-label="Filter to rules with successful runs in the last 24 hours" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${ruleView === 'successful' ? 'ring-1 ring-blue-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-blue-500/50">
           <div className="text-xl font-black text-purple-400">{successRate}%</div>
           <div className="text-xs text-slate-500">Success Rate</div>
-        </div>
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        </div></button>
+        <button type="button" onClick={() => setRuleView('failed')} aria-pressed={ruleView === 'failed'} aria-label="Filter to rules with failed runs in the last 24 hours" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${ruleView === 'failed' ? 'ring-1 ring-red-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-red-500/50">
           <div className={cn('text-xl font-black', stats.failures24h > 0 ? 'text-red-400' : 'text-emerald-400')}>{stats.failures24h}</div>
           <div className="text-xs text-slate-500">Failures (24h)</div>
-        </div>
+        </div></button>
         <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
           <div className={cn('text-xl font-black', rollbackRate > 8 ? 'text-red-400' : rollbackRate > 3 ? 'text-yellow-400' : 'text-emerald-400')}>
             {rollbackRate.toFixed(1)}%
@@ -140,14 +151,18 @@ export default function AutomationPage() {
         </div>
       </div>
 
+      {ruleView !== 'all' && <div className="flex items-center justify-between text-xs text-slate-500"><span>Showing {visibleRules.length} of {rules.length} rules · {ruleView === 'recent' ? 'ran in the last 24 hours' : ruleView}</span><button type="button" onClick={() => setRuleView('all')} className="text-blue-400 hover:underline">Clear filter</button></div>}
+
       {rules.length === 0 ? (
-        <div className="rounded-2xl bg-[#0f1629] border border-slate-800 p-10 text-center">
+        <div id="automation-rules" className="rounded-2xl bg-[#0f1629] border border-slate-800 p-10 text-center scroll-mt-6">
           <Terminal className="w-10 h-10 text-slate-700 mx-auto mb-3" />
               <p className="text-slate-500 text-sm">No automation rules. Create rules to automate ERP database operations like delta merges, stats updates, or backups.</p>
         </div>
+      ) : visibleRules.length === 0 ? (
+        <div id="automation-rules" className="rounded-2xl bg-[#0f1629] border border-slate-800 p-10 text-center scroll-mt-6 text-sm text-slate-500">No rules match this filter.</div>
       ) : (
-        <div className="space-y-3">
-          {rules.map((r: {
+        <div id="automation-rules" className="space-y-3 scroll-mt-6">
+          {visibleRules.map((r: {
             id: string; name: string; description: string; enabled: boolean
             triggerType: string; actionType: string; connectionName: string; lastRun: string; lastStatus?: string
           }) => (

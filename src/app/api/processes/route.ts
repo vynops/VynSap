@@ -18,17 +18,19 @@ export async function GET(req: NextRequest) {
     .sort((a, b) => (b.failed + b.backlog) - (a.failed + a.backlog))
     .slice(0, 3)
 
-  const slo = {
+  const hasBusinessTelemetry = overview.dataQuality === 'demo'
+  const slo = hasBusinessTelemetry ? {
     targetPct: 99,
     currentAvgPct: Number((overview.processes.reduce((n, p) => n + p.slaPct, 0) / overview.processes.length).toFixed(2)),
     errorBudgetRemainingPct: Number(Math.max(0, 100 - (bottlenecks.reduce((n, p) => n + p.failed, 0) * 1.1)).toFixed(2)),
     burnRate1h: Number((1 + bottlenecks.reduce((n, p) => n + p.failed, 0) / 18).toFixed(2)),
     burnRate6h: Number((1 + bottlenecks.reduce((n, p) => n + p.backlog, 0) / 140).toFixed(2)),
     exhaustionForecastHours: Number((Math.max(0, 100 - (bottlenecks.reduce((n, p) => n + p.failed, 0) * 1.1)) / Math.max(0.25, 1 + bottlenecks.reduce((n, p) => n + p.failed, 0) / 18)).toFixed(1)),
-  }
+  } : null
 
   return NextResponse.json({
     generatedAt: overview.generatedAt,
+    dataQuality: overview.dataQuality,
     system: overview.system,
     processes: overview.processes,
     bottlenecks,

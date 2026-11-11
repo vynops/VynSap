@@ -45,6 +45,7 @@ export interface ErpBusinessEvent {
 
 export interface ErpAppOverview {
   generatedAt: string
+  dataQuality: 'demo' | 'live-infrastructure-only' | 'sap-application-source'
   system: {
     id: string
     name: string
@@ -91,7 +92,8 @@ function pct(seed: number, min: number, max: number): number {
 }
 
 async function pingOData(conn: ErpConnection): Promise<ConnectorHealth> {
-  const endpoint = `https://${conn.host}/sap/opu/odata`
+  const fallbackProtocol = conn.ssl ? 'https' : 'http'
+  const endpoint = (conn.endpointUrl || `${fallbackProtocol}://${conn.host}:${conn.port}/sap/opu/odata`).replace(/\/+$/, '')
   const checkedAt = new Date().toISOString()
   const start = Date.now()
   if (isDemoConnection(conn)) {
@@ -100,9 +102,15 @@ async function pingOData(conn: ErpConnection): Promise<ConnectorHealth> {
 
   const basic = Buffer.from(`${conn.username}:${decryptPassword(conn.passwordEnc)}`).toString('base64')
   try {
+    const url = new URL(endpoint)
+    const isLoopback = ['localhost', '127.0.0.1', '::1'].includes(url.hostname.toLowerCase())
+    if (url.protocol !== 'https:' && !(url.protocol === 'http:' && isLoopback && ['development', 'test'].includes(conn.environment))) {
+      throw new Error('SAP OData requires HTTPS; HTTP is allowed only for a local development/test endpoint')
+    }
     const res = await fetch(`${endpoint}/$metadata`, {
       method: 'GET',
       headers: { Authorization: `Basic ${basic}` },
+      signal: AbortSignal.timeout(8000),
     })
     const latencyMs = Date.now() - start
     if (res.ok) {
@@ -288,6 +296,7 @@ function buildTrendSeries(seed: number, process: ProcessKpi, points: number, ste
 }
 
 export function getProcessTrends(conn: ErpConnection): Record<ProcessKpi['key'], ProcessTrends> {
+  if (!isDemoConnection(conn)) return {} as Record<ProcessKpi['key'], ProcessTrends>
   const seed = baseSeed(conn)
   const processes = buildProcesses(conn, seed)
   const out = {} as Record<ProcessKpi['key'], ProcessTrends>
@@ -303,6 +312,12 @@ export function getProcessTrends(conn: ErpConnection): Record<ProcessKpi['key'],
 }
 
 export async function getConnectorHealth(conn: ErpConnection): Promise<ConnectorHealth[]> {
+  if (conn.dbType === 'sap-odata') {
+    const health = [await pingOData(conn)]
+    appendConnectorLatencySamples(health.map(h => ({ connId: conn.id, connectorType: h.type, latencyMs: h.latencyMs, status: h.status, at: h.checkedAt })))
+    return health
+  }
+
   if (conn.dbType && conn.dbType !== 'hana') {
     const health = [await pingDatabase(conn)]
     appendConnectorLatencySamples(
@@ -339,9 +354,11 @@ export async function getConnectorHealth(conn: ErpConnection): Promise<Connector
 
 export async function getErpAppOverview(conn: ErpConnection): Promise<ErpAppOverview> {
   const seed = baseSeed(conn)
+  const demo = isDemoConnection(conn)
   const [connectors] = await Promise.all([getConnectorHealth(conn)])
   return {
     generatedAt: new Date().toISOString(),
+    dataQuality: demo ? 'demo' : conn.dbType === 'sap-odata' ? 'sap-application-source' : 'live-infrastructure-only',
     system: {
       id: conn.id,
       name: conn.name,
@@ -349,13 +366,14 @@ export async function getErpAppOverview(conn: ErpConnection): Promise<ErpAppOver
       host: conn.host,
     },
     connectors,
-    processes: buildProcesses(conn, seed),
-    modules: buildModules(seed),
-    events: buildEvents(seed),
+    processes: demo ? buildProcesses(conn, seed) : [],
+    modules: demo ? buildModules(seed) : [],
+    events: demo ? buildEvents(seed) : [],
   }
 }
 
 export async function getModuleHealth(conn: ErpConnection, code?: string): Promise<ModuleHealth[]> {
+  if (!isDemoConnection(conn)) return []
   const modules = buildModules(baseSeed(conn))
   if (!code) return modules
   const upper = code.toUpperCase()

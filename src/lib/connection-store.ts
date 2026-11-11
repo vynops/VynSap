@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
+import { getRuntimeSecrets } from './runtime-secrets'
 
 const DATA_DIR = path.join(process.cwd(), 'data')
 
@@ -10,7 +11,7 @@ export type ErpEnv = 'production' | 'staging' | 'development' | 'test'
 export type ErpStatus = 'connected' | 'warning' | 'error' | 'unknown'
 export type ErpConnectorType = 'odata' | 'rfc' | 'bapi'
 export type ErpAuthType = 'basic' | 'oauth2' | 'saml'
-export type DbType = 'hana' | 'postgres' | 'mysql' | 'redis' | 'mongodb'
+export type DbType = 'sap-odata' | 'hana' | 'postgres' | 'mysql' | 'redis' | 'mongodb'
 
 export interface ErpConnection {
   dbType?: DbType
@@ -45,6 +46,13 @@ export interface ErpConnection {
   _isDemo?: boolean
 }
 
+export type PublicErpConnection = Omit<ErpConnection, 'passwordEnc'> & { passwordConfigured: boolean }
+
+export function toPublicConnection(conn: ErpConnection): PublicErpConnection {
+  const { passwordEnc, ...publicConnection } = conn
+  return { ...publicConnection, passwordConfigured: Boolean(passwordEnc) }
+}
+
 export function isDemoConnection(conn: Pick<ErpConnection, 'id' | 'name' | 'host' | 'notes' | 'tags' | '_isDemo'>): boolean {
   if (conn._isDemo) return true
   if (conn.id === DEMO_CONN_ID) return true
@@ -62,12 +70,19 @@ export function isDemoConnection(conn: Pick<ErpConnection, 'id' | 'name' | 'host
   return hasDemoTag || (hostLooksDemo && (nameLooksDemo || notesLooksDemo))
 }
 
-function xor(s: string): string {
-  const key = 0x5a
-  return Buffer.from(Buffer.from(s).map(b => b ^ key)).toString('base64')
-}
-
 export function decryptPassword(enc: string): string {
+  if (enc.startsWith('enc:v1:')) {
+    try {
+      const [, , ivRaw, tagRaw, valueRaw] = enc.split(':')
+      const keySource = getRuntimeSecrets().connectionEncryptionKey
+      const key = crypto.createHash('sha256').update(keySource).digest()
+      const decipher = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(ivRaw, 'base64'))
+      decipher.setAuthTag(Buffer.from(tagRaw, 'base64'))
+      return Buffer.concat([decipher.update(Buffer.from(valueRaw, 'base64')), decipher.final()]).toString('utf8')
+    } catch {
+      return ''
+    }
+  }
   try {
     return Buffer.from(enc, 'base64').map(b => b ^ 0x5a).toString()
   } catch {
@@ -169,7 +184,12 @@ export function deleteConnection(id: string) {
 }
 
 export function encryptPassword(plain: string): string {
-  return xor(plain)
+  const keySource = getRuntimeSecrets().connectionEncryptionKey
+  const key = crypto.createHash('sha256').update(keySource).digest()
+  const iv = crypto.randomBytes(12)
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv)
+  const value = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()])
+  return `enc:v1:${iv.toString('base64')}:${cipher.getAuthTag().toString('base64')}:${value.toString('base64')}`
 }
 
 export function newConnectionId(): string {

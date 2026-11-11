@@ -2,6 +2,7 @@
 
 import useSWR from 'swr'
 import { useMemo, useState } from 'react'
+import Link from 'next/link'
 import { Phone, Plus, User, Loader2, RefreshCw, Siren, Trash2, X } from 'lucide-react'
 import { cn, timeAgo } from '@/lib/utils'
 
@@ -30,6 +31,8 @@ export default function OncallPage() {
   const { data: incidents } = useSWR('/api/incidents', fetcher, { refreshInterval: 15000 })
 
   const [showAdd, setShowAdd] = useState(false)
+  const [scheduleFilter, setScheduleFilter] = useState<'all' | 'covered'>('all')
+  const [escalationFilter, setEscalationFilter] = useState<'all' | 'open'>('all')
   const [saving, setSaving] = useState(false)
   const [workingId, setWorkingId] = useState<string | null>(null)
   const [form, setForm] = useState({
@@ -41,6 +44,8 @@ export default function OncallPage() {
   const schedules: OnCallSchedule[] = Array.isArray(data?.schedules) ? data.schedules : []
   const escalations: EscalationEvent[] = Array.isArray(data?.escalations) ? data.escalations : []
   const stats = data?.stats ?? { scheduleCount: schedules.length, openEscalations: 0, memberCount: 0 }
+  const visibleSchedules = schedules.filter(schedule => scheduleFilter === 'all' || Boolean(schedule.currentOnCall))
+  const visibleEscalations = escalations.filter(event => escalationFilter === 'all' || !event.resolved)
   const openIncidents = Array.isArray(incidents)
     ? incidents.filter((i: { status: string }) => i.status === 'open' || i.status === 'investigating')
     : []
@@ -148,18 +153,18 @@ export default function OncallPage() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        <Link href="#schedule-list" aria-label="View on-call schedules" className="block rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-blue-500/50">
           <div className="text-xl font-black text-white">{stats.scheduleCount}</div>
           <div className="text-xs text-slate-500">Schedules</div>
-        </div>
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        </div></Link>
+        <button type="button" onClick={() => setScheduleFilter(current => current === 'covered' ? 'all' : 'covered')} aria-pressed={scheduleFilter === 'covered'} aria-label="Filter to schedules with active on-call coverage" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${scheduleFilter === 'covered' ? 'ring-1 ring-blue-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-blue-500/50">
           <div className="text-xl font-black text-blue-400">{activeCoveragePct}%</div>
           <div className="text-xs text-slate-500">Coverage Active</div>
-        </div>
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        </div></button>
+        <button type="button" onClick={() => setEscalationFilter(current => current === 'open' ? 'all' : 'open')} aria-pressed={escalationFilter === 'open'} aria-label="Filter to open escalations" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${escalationFilter === 'open' ? 'ring-1 ring-yellow-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-yellow-500/50">
           <div className={cn('text-xl font-black', stats.openEscalations > 0 ? 'text-yellow-400' : 'text-emerald-400')}>{stats.openEscalations}</div>
           <div className="text-xs text-slate-500">Open Escalations</div>
-        </div>
+        </div></button>
         <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
           <div className="text-xl font-black text-purple-400">{respondersPerSchedule.toFixed(1)}</div>
           <div className="text-xs text-slate-500">Responders/Schedule</div>
@@ -170,15 +175,16 @@ export default function OncallPage() {
         <span className="font-semibold text-slate-300">Operational Pulse:</span> {openIncidents.length} active incidents · {escalation24h} escalations in last 24h.
       </div>
 
-      {schedules.length === 0 ? (
-        <div className="rounded-2xl bg-[#0f1629] border border-slate-800 p-10 text-center">
+      {scheduleFilter !== 'all' && <div className="flex items-center justify-between text-xs text-slate-500"><span>Showing {visibleSchedules.length} covered schedules</span><button type="button" onClick={() => setScheduleFilter('all')} className="text-blue-400 hover:underline">Clear filter</button></div>}
+      {visibleSchedules.length === 0 ? (
+        <div id="schedule-list" className="rounded-2xl bg-[#0f1629] border border-slate-800 p-10 text-center scroll-mt-6">
           <Phone className="w-10 h-10 text-slate-700 mx-auto mb-3" />
-          <p className="text-slate-500 text-sm mb-2">No on-call schedules yet.</p>
-                <p className="text-slate-600 text-xs">Create schedules to manage DBA rotations for your ERP systems.</p>
+          <p className="text-slate-500 text-sm mb-2">{scheduleFilter === 'all' ? 'No on-call schedules yet.' : 'No schedules have active coverage.'}</p>
+          {scheduleFilter === 'all' && <p className="text-slate-600 text-xs">Create schedules to manage DBA rotations for your ERP systems.</p>}
         </div>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {schedules.map(s => (
+        <div id="schedule-list" className="grid gap-4 lg:grid-cols-2 scroll-mt-6">
+          {visibleSchedules.map(s => (
             <div key={s.id} className="rounded-2xl bg-[#0f1629] border border-slate-800 p-5">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold text-white">{s.name}</h3>
@@ -230,16 +236,17 @@ export default function OncallPage() {
         </div>
       )}
 
-      <div className="rounded-2xl bg-[#0f1629] border border-slate-800 overflow-hidden">
+      <div id="recent-escalations" className="rounded-2xl bg-[#0f1629] border border-slate-800 overflow-hidden scroll-mt-6">
         <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
           <span className="text-xs font-bold text-slate-400">Recent Escalations</span>
-          <span className="text-[10px] text-slate-600">{escalations.length} events</span>
+          <span className="text-[10px] text-slate-600">{visibleEscalations.length} events</span>
         </div>
-        {escalations.length === 0 ? (
-          <div className="px-4 py-8 text-sm text-slate-500 text-center">No escalations yet.</div>
+        {escalationFilter !== 'all' && <div className="flex justify-end px-4 py-2"><button type="button" onClick={() => setEscalationFilter('all')} className="text-[10px] text-blue-400 hover:underline">Show all escalations</button></div>}
+        {visibleEscalations.length === 0 ? (
+          <div className="px-4 py-8 text-sm text-slate-500 text-center">{escalationFilter === 'all' ? 'No escalations yet.' : 'No open escalations.'}</div>
         ) : (
           <div className="divide-y divide-slate-800/60">
-            {escalations.slice(0, 10).map(e => (
+            {visibleEscalations.slice(0, 10).map(e => (
               <div key={e.id} className="px-4 py-3 text-xs">
                 <div className="flex items-center gap-2 mb-0.5">
                   <span className={cn('text-[10px] font-bold rounded-full px-2 py-0.5', e.resolved ? 'bg-emerald-500/20 text-emerald-400' : 'bg-yellow-500/20 text-yellow-400')}>
@@ -251,7 +258,7 @@ export default function OncallPage() {
                 <div className="text-slate-400">Escalated to {e.escalatedTo}</div>
                 <div className="text-slate-500">{e.reason}</div>
                 {e.incidentId && incidentById.get(e.incidentId) && (
-                  <div className="text-blue-400 mt-0.5">Linked incident: {incidentById.get(e.incidentId)?.title}</div>
+                  <Link href="/incidents" className="inline-block text-blue-400 mt-0.5 hover:text-blue-300 hover:underline">Linked incident: {incidentById.get(e.incidentId)?.title}</Link>
                 )}
               </div>
             ))}

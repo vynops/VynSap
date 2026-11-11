@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { hashPassword, requireRole, verifyPassword } from '@/lib/auth'
+import { hashPassword, requireRole, signToken, verifyPassword } from '@/lib/auth'
 import { appendAudit } from '@/lib/audit-store'
 import { findUserById, saveUser } from '@/lib/user-store'
 
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   if (!user || !verifyPassword(currentPassword, user.passwordHash)) {
     return NextResponse.json({ error: 'Current password is incorrect' }, { status: 401 })
   }
-  saveUser({ ...user, passwordHash: hashPassword(newPassword) })
+  saveUser({ ...user, passwordHash: hashPassword(newPassword), mustChangePassword: false })
   appendAudit({
     actor: auth.email,
     actorRole: auth.role,
@@ -24,5 +24,20 @@ export async function POST(req: NextRequest) {
     detail: 'Password changed',
     outcome: 'success',
   })
-  return NextResponse.json({ ok: true })
+  const token = await signToken({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    mustChangePassword: false,
+  })
+  const response = NextResponse.json({ ok: true })
+  response.cookies.set('vs_token', token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 60 * 60 * 8,
+    secure: process.env.NODE_ENV === 'production',
+  })
+  return response
 }

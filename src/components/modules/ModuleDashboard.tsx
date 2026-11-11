@@ -1,6 +1,7 @@
 'use client'
 
 import useSWR from 'swr'
+import Link from 'next/link'
 import { AlertTriangle, CheckCircle2, Clock3, Gauge, Layers3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -32,22 +33,22 @@ export function ModuleDashboard({ code, title, description }: ModuleDashboardPro
       ) : (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4">
+            <Link href="/sla" aria-label={`${title} availability and SLA`} className="block rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 h-full transition-colors hover:border-blue-500/50">
               <div className="text-[11px] text-slate-500 mb-1">Availability</div>
               <div className="text-xl font-black text-emerald-400">{module.availabilityPct}%</div>
-            </div>
-            <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4">
+            </div></Link>
+            <Link href="/incidents" aria-label={`${title} failed transactions`} className="block rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 h-full transition-colors hover:border-red-500/50">
               <div className="text-[11px] text-slate-500 mb-1">Failed Transactions</div>
               <div className="text-xl font-black text-red-400">{module.failedTransactions}</div>
-            </div>
-            <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4">
+            </div></Link>
+            <Link href="/automation" aria-label={`${title} queue backlog`} className="block rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 h-full transition-colors hover:border-yellow-500/50">
               <div className="text-[11px] text-slate-500 mb-1">Queue Backlog</div>
               <div className="text-xl font-black text-yellow-400">{module.queueBacklog}</div>
-            </div>
-            <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4">
+            </div></Link>
+            <Link href="/alerts" aria-label={`${title} integration lag`} className="block rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 h-full transition-colors hover:border-blue-500/50">
               <div className="text-[11px] text-slate-500 mb-1">Integration Lag</div>
               <div className="text-xl font-black text-blue-400">{module.integrationLagMins}m</div>
-            </div>
+            </div></Link>
           </div>
 
           <div className="rounded-2xl bg-[#0f1629] border border-slate-800 p-5">
@@ -80,7 +81,7 @@ export function ModuleDashboard({ code, title, description }: ModuleDashboardPro
             ) : (
               <div className="divide-y divide-slate-800/60">
                 {module.openEvents.map((e: { id: string; severity: string; title: string; ageMins: number }) => (
-                  <div key={e.id} className="px-4 py-3 text-xs flex items-center gap-3">
+                  <Link key={e.id} href="/alerts" aria-label={`View ${code} alert: ${e.title}`} className="px-4 py-3 text-xs flex items-center gap-3 transition-colors hover:bg-slate-800/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400">
                     <span className={cn(
                       'rounded-full px-2 py-0.5 font-bold text-[10px]',
                       e.severity === 'critical' ? 'bg-red-500/20 text-red-400' :
@@ -91,7 +92,7 @@ export function ModuleDashboard({ code, title, description }: ModuleDashboardPro
                     </span>
                     <span className="text-slate-300 flex-1">{e.title}</span>
                     <span className="text-slate-500">{e.ageMins}m ago</span>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}

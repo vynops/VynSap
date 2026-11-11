@@ -24,6 +24,20 @@ export async function proxy(req: NextRequest) {
     return res
   }
 
+  if (session.mustChangePassword) {
+    const allowed = pathname === '/change-password' || [
+      '/api/auth/password',
+      '/api/auth/me',
+      '/api/auth/logout',
+    ].includes(pathname)
+    if (!allowed) {
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json({ error: 'Password change required', code: 'PASSWORD_CHANGE_REQUIRED' }, { status: 403 })
+      }
+      return NextResponse.redirect(new URL('/change-password', req.url))
+    }
+  }
+
   return NextResponse.next()
 }
 

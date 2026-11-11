@@ -1,6 +1,7 @@
 'use client'
 
 import useSWR from 'swr'
+import { useState } from 'react'
 import { GitBranch, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -8,6 +9,7 @@ const fetcher = (url: string) => fetch(url).then(r => r.json())
 
 export default function ReplicationPage() {
   const { data, isLoading } = useSWR('/api/replication', fetcher, { refreshInterval: 10000 })
+  const [replicationView, setReplicationView] = useState<'all' | 'lag' | 'max-lag' | 'out-of-compliance'>('all')
   const rows = Array.isArray(data) ? data : []
 
   return (
@@ -28,7 +30,7 @@ export default function ReplicationPage() {
         log: Record<string, unknown>[]
         kpis?: { rpoTargetSec?: number; avgLagSec?: number; maxLagSec?: number; rpoCompliancePct?: number }
       }) => (
-        <div key={r.connId} className="space-y-4">
+        <div key={r.connId} id={`replication-details-${r.connId}`} className="space-y-4 scroll-mt-6">
           <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide">{r.connName}</h3>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -36,23 +38,25 @@ export default function ReplicationPage() {
               <div className="text-xl font-black text-blue-400">{Number(r.kpis?.rpoTargetSec ?? 60).toFixed(0)}s</div>
               <div className="text-xs text-slate-500">RPO Target</div>
             </div>
-            <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+            <button type="button" onClick={() => setReplicationView(current => current === 'lag' ? 'all' : 'lag')} aria-pressed={replicationView === 'lag'} aria-label="Sort replication rows by lag" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${replicationView === 'lag' ? 'ring-1 ring-yellow-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-yellow-500/50">
               <div className="text-xl font-black text-yellow-400">{Number(r.kpis?.avgLagSec ?? 0).toFixed(2)}s</div>
               <div className="text-xs text-slate-500">Avg Lag</div>
-            </div>
-            <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+            </div></button>
+            <button type="button" onClick={() => setReplicationView(current => current === 'max-lag' ? 'all' : 'max-lag')} aria-pressed={replicationView === 'max-lag'} aria-label="Show the replication row with maximum lag" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${replicationView === 'max-lag' ? 'ring-1 ring-red-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-red-500/50">
               <div className={cn('text-xl font-black', Number(r.kpis?.maxLagSec ?? 0) > Number(r.kpis?.rpoTargetSec ?? 60) ? 'text-red-400' : 'text-emerald-400')}>
                 {Number(r.kpis?.maxLagSec ?? 0).toFixed(2)}s
               </div>
               <div className="text-xs text-slate-500">Max Lag</div>
-            </div>
-            <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+            </div></button>
+            <button type="button" onClick={() => setReplicationView(current => current === 'out-of-compliance' ? 'all' : 'out-of-compliance')} aria-pressed={replicationView === 'out-of-compliance'} aria-label="Filter replication rows outside RPO compliance" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${replicationView === 'out-of-compliance' ? 'ring-1 ring-blue-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-blue-500/50">
               <div className={cn('text-xl font-black', Number(r.kpis?.rpoCompliancePct ?? 100) < 95 ? 'text-red-400' : Number(r.kpis?.rpoCompliancePct ?? 100) < 99 ? 'text-yellow-400' : 'text-emerald-400')}>
                 {Number(r.kpis?.rpoCompliancePct ?? 100).toFixed(1)}%
               </div>
               <div className="text-xs text-slate-500">RPO Compliance</div>
-            </div>
+            </div></button>
           </div>
+
+          {replicationView !== 'all' && <div className="flex items-center justify-between text-xs text-slate-500"><span>{replicationView === 'lag' ? 'Sorted by highest replication lag' : replicationView === 'max-lag' ? 'Showing maximum-lag row' : 'Showing rows outside RPO compliance'}</span><button type="button" onClick={() => setReplicationView('all')} className="text-blue-400 hover:underline">Clear filter</button></div>}
 
           {/* Sites overview */}
           {r.sites && r.sites.length > 0 ? (
@@ -103,7 +107,13 @@ export default function ReplicationPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/50">
-                  {r.status.map((s, i) => {
+                  {replicationView === 'out-of-compliance' && r.status.every(s => Number(s.REPLICATION_DELAY_MS ?? 0) <= Number(r.kpis?.rpoTargetSec ?? 60) * 1000 && String(s.SECONDARY_FULLY_SYNCED ?? '').toUpperCase() === 'TRUE') && (
+                    <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-500">All replication rows meet the RPO target.</td></tr>
+                  )}
+                  {(replicationView === 'out-of-compliance'
+                    ? r.status.filter(s => Number(s.REPLICATION_DELAY_MS ?? 0) > Number(r.kpis?.rpoTargetSec ?? 60) * 1000 || String(s.SECONDARY_FULLY_SYNCED ?? '').toUpperCase() !== 'TRUE')
+                    : [...r.status].sort((a, b) => Number(b.REPLICATION_DELAY_MS ?? 0) - Number(a.REPLICATION_DELAY_MS ?? 0)).slice(0, replicationView === 'max-lag' ? 1 : r.status.length)
+                  ).map((s, i) => {
                     const lag = Number(s.REPLICATION_DELAY_MS ?? 0)
                     return (
                       <tr key={i} className="hover:bg-slate-800/20">

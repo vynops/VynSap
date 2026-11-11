@@ -22,12 +22,12 @@ export default function LoginPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       })
+      const data = await res.json()
       if (res.ok) {
-        router.push('/overview')
+        router.replace(data.user?.mustChangePassword ? '/change-password' : '/overview')
         router.refresh()
       } else {
-        const d = await res.json()
-        setError(d.error ?? 'Login failed')
+        setError(data.error ?? 'Login failed')
       }
     } catch {
       setError('Network error — try again')
@@ -44,11 +44,12 @@ export default function LoginPage() {
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center mb-4 shadow-lg shadow-blue-500/30">
             <Database className="w-7 h-7 text-white" />
           </div>
-          <h1 className="text-2xl font-black text-white tracking-tight">VynSAP</h1>
+          <h1 className="text-2xl font-black tracking-tight"><span className="text-white">Vyn</span><span className="text-cyan-400">SAP</span></h1>
           <p className="text-slate-500 text-sm mt-1">SAP ERP Operations Platform</p>
         </div>
 
         <form onSubmit={handleSubmit} className="rounded-2xl bg-[#0f1629] border border-slate-800 p-8 space-y-5">
+          <h2 className="text-center text-base font-semibold text-white">Log In</h2>
           {error && (
             <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -84,17 +85,11 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="mt-3 rounded-xl border border-blue-500/15 bg-blue-500/5 p-3">
-          <p className="mb-1 text-[11px] font-semibold text-slate-400">First-time setup</p>
-          <p className="text-[11px] leading-relaxed text-slate-500">
-            Set <span className="rounded bg-slate-800 px-1 text-blue-400">VYNSAP_ADMIN_EMAIL</span> and{' '}
-            <span className="rounded bg-slate-800 px-1 text-blue-400">VYNSAP_ADMIN_PASSWORD</span> in{' '}
-            <span className="rounded bg-slate-800 px-1 text-slate-400">.env.local</span> — the admin account is created automatically on first boot.
-          </p>
-        </div>
-
         <p className="mt-4 text-center text-[11px] text-slate-600">
-          Part of the <span className="text-slate-500 font-medium">VynOps Suite</span>
+          Part of the{' '}
+          <a href="https://www.vynops.com" className="font-medium text-cyan-400 transition-colors hover:text-cyan-300">
+            VynOps Suite
+          </a>
         </p>
       </div>
     </div>

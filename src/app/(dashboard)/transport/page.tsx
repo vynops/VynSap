@@ -2,6 +2,7 @@
 
 import useSWR from 'swr'
 import { useState } from 'react'
+import Link from 'next/link'
 import { Package, Plus, ShieldCheck, ShieldAlert, Clock, CheckCircle2, XCircle, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -29,6 +30,7 @@ interface Transport {
 export default function TransportPage() {
   const { data, mutate } = useSWR<Transport[]>('/api/transport', fetcher)
   const [showForm, setShowForm] = useState(false)
+  const [filter, setFilter] = useState<'all' | 'review' | 'approved' | 'released' | 'high-risk'>('all')
   const [working, setWorking] = useState<string | null>(null)
   const [form, setForm] = useState({ description: '', type: 'customizing', targetSystem: 'PRODUCTION', objects: '' })
   const [error, setError] = useState('')
@@ -38,6 +40,11 @@ export default function TransportPage() {
   const approved  = transports.filter(t => t.status === 'approved').length
   const released  = transports.filter(t => t.status === 'released').length
   const highRisk  = transports.filter(t => t.aiRisk === 'high' || t.aiRisk === 'critical').length
+  const filteredTransports = transports.filter(transport =>
+    filter === 'all' || (filter === 'high-risk'
+      ? transport.aiRisk === 'high' || transport.aiRisk === 'critical'
+      : transport.status === filter)
+  )
 
   async function submit() {
     if (!form.description) return
@@ -74,15 +81,15 @@ export default function TransportPage() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[{ label: 'Pending Review', value: pending, color: 'text-yellow-400', Icon: Clock },
-          { label: 'Approved', value: approved, color: 'text-emerald-400', Icon: CheckCircle2 },
-          { label: 'Released', value: released, color: 'text-purple-400', Icon: Package },
-          { label: 'High Risk', value: highRisk, color: 'text-red-400', Icon: ShieldAlert }].map(({ label, value, color, Icon }) => (
-          <div key={label} className="rounded-2xl bg-[#0f1629] border border-slate-800 p-5">
+        {[{ label: 'Pending Review', value: pending, filter: 'review' as const, color: 'text-yellow-400', Icon: Clock },
+          { label: 'Approved', value: approved, filter: 'approved' as const, color: 'text-emerald-400', Icon: CheckCircle2 },
+          { label: 'Released', value: released, filter: 'released' as const, color: 'text-purple-400', Icon: Package },
+          { label: 'High Risk', value: highRisk, filter: 'high-risk' as const, color: 'text-red-400', Icon: ShieldAlert }].map(({ label, value, filter: targetFilter, color, Icon }) => (
+          <button key={label} type="button" onClick={() => setFilter(targetFilter)} aria-pressed={filter === targetFilter} aria-label={`Filter to ${label.toLowerCase()} transports`} className={`block w-full text-left rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${filter === targetFilter ? 'ring-1 ring-blue-500/60' : ''}`}><div className="rounded-2xl bg-[#0f1629] border border-slate-800 p-5 transition-colors hover:border-blue-500/50">
             <Icon className={cn('w-5 h-5 mb-3', color)} />
             <div className={cn('text-2xl font-black', color)}>{value}</div>
             <div className="text-xs text-slate-500 mt-0.5 font-medium">{label}</div>
-          </div>
+          </div></button>
         ))}
       </div>
 
@@ -122,9 +129,13 @@ export default function TransportPage() {
         </div>
       )}
 
-      <div className="space-y-3">
-        {transports.length === 0 && <div className="text-center py-12 text-slate-500 text-sm">No transports yet — submit one above.</div>}
-        {transports.map(t => (
+      <div id="transport-list" className="space-y-3 scroll-mt-6">
+        <div className="flex items-center justify-between text-xs text-slate-500">
+          <span>Showing {filteredTransports.length} of {transports.length} transports{filter === 'all' ? '' : ` · ${filter === 'high-risk' ? 'high risk' : filter === 'review' ? 'pending review' : filter}`}</span>
+          {filter !== 'all' && <button type="button" onClick={() => setFilter('all')} className="text-blue-400 hover:underline">Clear filter</button>}
+        </div>
+        {transports.length === 0 ? <div className="text-center py-12 text-slate-500 text-sm">No transports yet — submit one above.</div> : filteredTransports.length === 0 ? <div className="text-center py-12 text-slate-500 text-sm">No transports match this filter.</div> : null}
+        {filteredTransports.map(t => (
           <div key={t.id} className="rounded-2xl bg-[#0f1629] border border-slate-800 p-5 hover:border-slate-700 transition-colors">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">

@@ -20,14 +20,25 @@ export default function IncidentsPage() {
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ title: '', description: '', severity: 'medium', assignee: '', connectionId: '' })
   const [saving, setSaving] = useState(false)
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'investigating' | 'resolved' | 'critical' | 'business-impact'>('all')
   const [noteFor, setNoteFor] = useState<string | null>(null)
   const [noteText, setNoteText] = useState('')
 
   const incidents = Array.isArray(data?.incidents) ? data.incidents : []
   const incidentKpis = data?.kpis
   const connList = Array.isArray(conns) ? conns : []
-  const filtered = incidents.filter((i: { status: string }) => statusFilter === 'all' || i.status === statusFilter)
+  const filtered = incidents.filter((i: { status: string; severity: string; businessImpactScore?: number }) => {
+    if (statusFilter === 'all') return true
+    if (statusFilter === 'critical') return !['resolved', 'closed'].includes(i.status) && i.severity === 'critical'
+    if (statusFilter === 'business-impact') return !['resolved', 'closed'].includes(i.status) && Number(i.businessImpactScore ?? 0) > 0
+    if (statusFilter === 'resolved') return ['resolved', 'closed'].includes(i.status)
+    return i.status === statusFilter
+  })
+
+  function selectStatusFilter(next: typeof statusFilter) {
+    setStatusFilter(next)
+    document.getElementById('incident-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   const openCount = incidents.filter((i: { status: string }) => i.status === 'open').length
   const investigatingCount = incidents.filter((i: { status: string }) => i.status === 'investigating').length
@@ -94,12 +105,12 @@ export default function IncidentsPage() {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex gap-1 bg-slate-800/40 rounded-lg p-1">
-            {['all', 'open', 'investigating', 'resolved'].map(s => (
-              <button key={s} onClick={() => setStatusFilter(s)}
+            {(['all', 'open', 'investigating', 'resolved', 'critical', 'business-impact'] as const).map(s => (
+              <button key={s} onClick={() => selectStatusFilter(s)}
                 className={cn('px-2.5 py-1 text-xs font-semibold rounded-md transition-colors capitalize',
                   statusFilter === s ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
                 )}>
-                {s}
+                {s === 'business-impact' ? 'impact' : s}
               </button>
             ))}
           </div>
@@ -111,46 +122,46 @@ export default function IncidentsPage() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        <button type="button" onClick={() => selectStatusFilter('open')} aria-pressed={statusFilter === 'open'} aria-label="Filter to open incidents" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${statusFilter === 'open' ? 'ring-1 ring-red-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-red-500/50">
           <div className="text-xl font-black text-red-400">{openCount}</div>
           <div className="text-xs text-slate-500">Open Incidents</div>
-        </div>
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        </div></button>
+        <button type="button" onClick={() => selectStatusFilter('investigating')} aria-pressed={statusFilter === 'investigating'} aria-label="Filter to investigating incidents" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${statusFilter === 'investigating' ? 'ring-1 ring-yellow-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-yellow-500/50">
           <div className="text-xl font-black text-yellow-400">{investigatingCount}</div>
           <div className="text-xs text-slate-500">Investigating</div>
-        </div>
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        </div></button>
+        <button type="button" onClick={() => selectStatusFilter('critical')} aria-pressed={statusFilter === 'critical'} aria-label="Filter to critical active incidents" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${statusFilter === 'critical' ? 'ring-1 ring-red-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-red-500/50">
           <div className={cn('text-xl font-black', criticalOpen > 0 ? 'text-red-400' : 'text-emerald-400')}>{criticalOpen}</div>
           <div className="text-xs text-slate-500">Critical Active</div>
-        </div>
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+        </div></button>
+        <button type="button" onClick={() => selectStatusFilter('resolved')} aria-pressed={statusFilter === 'resolved'} aria-label="Filter to resolved incidents used for MTTR" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${statusFilter === 'resolved' ? 'ring-1 ring-blue-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-blue-500/50">
           <div className="text-xl font-black text-blue-400">{mttrHours.toFixed(1)}h</div>
           <div className="text-xs text-slate-500">MTTR (30d)</div>
-        </div>
+        </div></button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4">
+        <button type="button" onClick={() => selectStatusFilter('resolved')} aria-pressed={statusFilter === 'resolved'} aria-label="Filter to resolved incidents used for detection-time metrics" className={`w-full text-left rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${statusFilter === 'resolved' ? 'ring-1 ring-yellow-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 transition-colors hover:border-yellow-500/50">
           <div className="text-[11px] text-slate-500">MTTD</div>
           <div className="text-lg font-black text-yellow-400 mt-1">{mttdMins.toFixed(1)}m</div>
           <div className="text-[10px] text-slate-600 mt-1">Mean time to detect (30d)</div>
-        </div>
-        <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4">
+        </div></button>
+        <button type="button" onClick={() => selectStatusFilter('business-impact')} aria-pressed={statusFilter === 'business-impact'} aria-label="Filter to unresolved incidents with business impact" className={`w-full text-left rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${statusFilter === 'business-impact' ? 'ring-1 ring-blue-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 transition-colors hover:border-blue-500/50">
           <div className="text-[11px] text-slate-500">Active Business Impact Score</div>
           <div className={cn('text-lg font-black mt-1', activeBusinessImpact >= 220 ? 'text-red-400' : activeBusinessImpact >= 100 ? 'text-yellow-400' : 'text-emerald-400')}>
             {activeBusinessImpact}
           </div>
           <div className="text-[10px] text-slate-600 mt-1">Aggregated impact of unresolved incidents</div>
-        </div>
+        </div></button>
       </div>
 
       {filtered.length === 0 ? (
-        <div className="rounded-2xl bg-[#0f1629] border border-slate-800 p-8 text-center">
+        <div id="incident-list" className="rounded-2xl bg-[#0f1629] border border-slate-800 p-8 text-center scroll-mt-6">
           <AlertTriangle className="w-8 h-8 text-slate-700 mx-auto mb-2" />
           <p className="text-slate-500 text-sm">No incidents {statusFilter !== 'all' ? `with status "${statusFilter}"` : ''}.</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div id="incident-list" className="space-y-3 scroll-mt-6">
           {filtered.map((inc: {
             id: string; title: string; description: string; severity: string
             status: string; assignee: string; createdAt: string; connectionName: string; businessImpactScore?: number

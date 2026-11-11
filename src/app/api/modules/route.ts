@@ -36,6 +36,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     generatedAt: overview.generatedAt,
+    dataQuality: overview.dataQuality,
     system: overview.system,
     modules: payload,
   })

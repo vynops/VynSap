@@ -1,6 +1,7 @@
 'use client'
 
 import useSWR from 'swr'
+import Link from 'next/link'
 import { MemoryStick } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
@@ -64,7 +65,7 @@ export default function MemoryPage() {
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide">{r.connName}</h3>
 
             <div className="grid lg:grid-cols-2 gap-4">
-              <div className="rounded-2xl bg-[#0f1629] border border-slate-800 p-5 space-y-4">
+              <div id={`memory-overview-${r.connId}`} className="rounded-2xl bg-[#0f1629] border border-slate-800 p-5 space-y-4 scroll-mt-6">
                 <div className="text-xs font-bold text-slate-400">Memory Overview</div>
                 <MemBar label="ERP DB Allocation Limit" value={limit} max={limit} color="bg-slate-600" />
                 <MemBar label="ERP DB Total Used" value={Number(ov.USED_GB ?? 0)} max={limit} color="bg-blue-500" />
@@ -102,22 +103,22 @@ export default function MemoryPage() {
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+              <Link href="/column-store" aria-label="View loaded column-store tables" className="block rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-blue-500/50">
                 <div className="text-xl font-black text-white">{Number(r.columnStore?.TABLE_COUNT ?? 0).toLocaleString()}</div>
                 <div className="text-xs text-slate-500">CS Tables Loaded</div>
-              </div>
-              <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+              </div></Link>
+              <Link href="/column-store" aria-label="View column-store memory details" className="block rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-blue-500/50">
                 <div className="text-xl font-black text-blue-400">{csTotal.toFixed(2)} GB</div>
                 <div className="text-xs text-slate-500">Column Store Total</div>
-              </div>
-              <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+              </div></Link>
+              <Link href="/capacity" aria-label="View physical free capacity" className="block rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-emerald-500/50">
                 <div className="text-xl font-black text-emerald-400">{Number(ov.FREE_GB ?? 0).toFixed(2)} GB</div>
                 <div className="text-xs text-slate-500">Physical Free</div>
-              </div>
-              <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+              </div></Link>
+              <Link href={`#memory-overview-${r.connId}`} aria-label="View heap memory allocation breakdown" className="block rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-purple-500/50">
                 <div className="text-xl font-black text-purple-400">{Number(r.heap?.HEAP_ALLOC_GB ?? 0).toFixed(2)} GB</div>
                 <div className="text-xs text-slate-500">Heap Allocated</div>
-              </div>
+              </div></Link>
             </div>
           </div>
         )

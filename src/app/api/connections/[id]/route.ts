@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
-import { loadConnections, saveConnection, deleteConnection, encryptPassword } from '@/lib/connection-store'
+import { loadConnections, saveConnection, deleteConnection, encryptPassword, toPublicConnection } from '@/lib/connection-store'
 import { removeFromPool } from '@/lib/erp-client'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -11,7 +11,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params
   const conn = loadConnections().find(c => c.id === id)
   if (!conn) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  return NextResponse.json(conn)
+  return NextResponse.json(toPublicConnection(conn))
 }
 
 export async function PATCH(req: NextRequest, ctx: Ctx) {
@@ -28,7 +28,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   delete (conn as Record<string, unknown>).password
   removeFromPool(id)
   saveConnection(conn)
-  return NextResponse.json(conn)
+  return NextResponse.json(toPublicConnection(conn))
 }
 
 export async function DELETE(req: NextRequest, ctx: Ctx) {

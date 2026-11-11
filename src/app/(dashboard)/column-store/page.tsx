@@ -40,15 +40,16 @@ export default function ColumnStorePage() {
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {[
-                { label: 'CS Total Memory', value: `${Number(s.TOTAL_GB ?? 0).toFixed(2)} GB`, color: 'text-blue-400' },
-                { label: 'Main Store', value: `${Number(s.MAIN_GB ?? 0).toFixed(2)} GB`, color: 'text-cyan-400' },
-                { label: 'Delta Store', value: `${Number(s.DELTA_GB ?? 0).toFixed(2)} GB`, color: 'text-yellow-400' },
-                { label: 'Tables Loaded', value: `${Number(s.FULLY_LOADED ?? 0)} / ${Number(s.TABLE_COUNT ?? 0)}`, color: 'text-emerald-400' },
+                { label: 'CS Total Memory', value: `${Number(s.TOTAL_GB ?? 0).toFixed(2)} GB`, color: 'text-blue-400', tab: 'tables' as const },
+                { label: 'Main Store', value: `${Number(s.MAIN_GB ?? 0).toFixed(2)} GB`, color: 'text-cyan-400', tab: 'tables' as const },
+                { label: 'Delta Store', value: `${Number(s.DELTA_GB ?? 0).toFixed(2)} GB`, color: 'text-yellow-400', tab: 'delta' as const },
+                { label: 'Tables Loaded', value: `${Number(s.FULLY_LOADED ?? 0)} / ${Number(s.TABLE_COUNT ?? 0)}`, color: 'text-emerald-400', tab: 'tables' as const },
               ].map(stat => (
-                <div key={stat.label} className="rounded-2xl bg-[#0f1629] border border-slate-800 p-4">
+                <button type="button" key={stat.label} onClick={() => setTab(stat.tab)} aria-label={`Show ${stat.label.toLowerCase()}`} className="w-full text-left rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400">
+                <div className="rounded-2xl bg-[#0f1629] border border-slate-800 p-4 transition-colors hover:border-blue-500/50">
                   <div className={cn('text-xl font-black', stat.color)}>{stat.value}</div>
                   <div className="text-xs text-slate-500 mt-1">{stat.label}</div>
-                </div>
+                </div></button>
               ))}
             </div>
 

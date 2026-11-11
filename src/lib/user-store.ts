@@ -11,6 +11,7 @@ export interface AppUser {
   role: 'admin' | 'editor' | 'viewer'
   createdAt: string
   active?: boolean
+  mustChangePassword?: boolean
 }
 
 const FILE = path.join(process.cwd(), 'data', 'users.json')
@@ -19,6 +20,7 @@ function read(): AppUser[] {
   try { return JSON.parse(fs.readFileSync(FILE, 'utf8')) } catch { return [] }
 }
 function write(list: AppUser[]) {
+  fs.mkdirSync(path.dirname(FILE), { recursive: true })
   fs.writeFileSync(FILE, JSON.stringify(list, null, 2), 'utf8')
 }
 
@@ -48,8 +50,10 @@ export function deleteUser(id: string) {
 export function ensureAdminUser() {
   const users = read()
   if (!users.find(u => u.role === 'admin')) {
-    const adminEmail = process.env.VYNSAP_ADMIN_EMAIL?.trim() || 'admin@vynsap.local'
-    const adminPassword = process.env.VYNSAP_ADMIN_PASSWORD?.trim() || 'admin123'
+    const configuredEmail = process.env.VYNSAP_ADMIN_EMAIL?.trim()
+    const configuredPassword = process.env.VYNSAP_ADMIN_PASSWORD?.trim()
+    const adminEmail = configuredEmail || 'admin@vynsap.local'
+    const adminPassword = configuredPassword || 'changeme'
     const admin: AppUser = {
       id: `user-${crypto.randomUUID().slice(0, 8)}`,
       name: 'Admin',
@@ -58,6 +62,7 @@ export function ensureAdminUser() {
       role: 'admin',
       createdAt: new Date().toISOString(),
       active: true,
+      mustChangePassword: true,
     }
     users.push(admin)
     write(users)

@@ -1,6 +1,7 @@
 'use client'
 
 import useSWR from 'swr'
+import { useState } from 'react'
 import { Server, CheckCircle2, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -17,7 +18,14 @@ const SVC_COLOR: Record<string, string> = {
 
 export default function ServicesPage() {
   const { data, isLoading } = useSWR('/api/services', fetcher, { refreshInterval: 15000 })
+  const [serviceView, setServiceView] = useState<'all' | 'active' | 'p95' | 'p99'>('all')
   const rows = Array.isArray(data) ? data : []
+  const visibleRows = [...rows]
+    .filter((row: { ACTIVE_STATUS?: string }) => serviceView !== 'active' || row.ACTIVE_STATUS === 'YES')
+    .sort((a: { RESPONSE_P95_MS?: number; RESPONSE_P99_MS?: number }, b: { RESPONSE_P95_MS?: number; RESPONSE_P99_MS?: number }) =>
+      serviceView === 'p95' ? Number(b.RESPONSE_P95_MS ?? 0) - Number(a.RESPONSE_P95_MS ?? 0) :
+      serviceView === 'p99' ? Number(b.RESPONSE_P99_MS ?? 0) - Number(a.RESPONSE_P99_MS ?? 0) : 0
+    )
   const p95Values = rows.map((r: { RESPONSE_P95_MS?: number }) => Number(r.RESPONSE_P95_MS ?? 0)).filter(n => Number.isFinite(n) && n > 0)
   const p99Values = rows.map((r: { RESPONSE_P99_MS?: number }) => Number(r.RESPONSE_P99_MS ?? 0)).filter(n => Number.isFinite(n) && n > 0)
   const avgP95 = p95Values.length === 0 ? 0 : p95Values.reduce((n, x) => n + x, 0) / p95Values.length
@@ -39,25 +47,26 @@ export default function ServicesPage() {
       ) : (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+            <button type="button" onClick={() => setServiceView('all')} aria-pressed={serviceView === 'all'} aria-label="Show all services" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${serviceView === 'all' ? 'ring-1 ring-blue-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-blue-500/50">
               <div className="text-xl font-black text-white">{rows.length}</div>
               <div className="text-xs text-slate-500">Services</div>
-            </div>
-            <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+            </div></button>
+            <button type="button" onClick={() => setServiceView('p95')} aria-pressed={serviceView === 'p95'} aria-label="Sort services by P95 latency" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${serviceView === 'p95' ? 'ring-1 ring-blue-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-blue-500/50">
               <div className="text-xl font-black text-blue-400">{avgP95.toFixed(0)}ms</div>
               <div className="text-xs text-slate-500">Avg P95</div>
-            </div>
-            <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+            </div></button>
+            <button type="button" onClick={() => setServiceView('p99')} aria-pressed={serviceView === 'p99'} aria-label="Sort services by P99 latency" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${serviceView === 'p99' ? 'ring-1 ring-purple-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-blue-500/50">
               <div className="text-xl font-black text-purple-400">{avgP99.toFixed(0)}ms</div>
               <div className="text-xs text-slate-500">Avg P99</div>
-            </div>
-            <div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center">
+            </div></button>
+            <button type="button" onClick={() => setServiceView('active')} aria-pressed={serviceView === 'active'} aria-label="Filter to active services" className={`w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${serviceView === 'active' ? 'ring-1 ring-emerald-500/70' : ''}`}><div className="rounded-xl bg-[#0f1629] border border-slate-800 p-4 text-center transition-colors hover:border-blue-500/50">
               <div className="text-xl font-black text-emerald-400">{rows.filter((r: { ACTIVE_STATUS: string }) => r.ACTIVE_STATUS === 'YES').length}</div>
               <div className="text-xs text-slate-500">Active</div>
-            </div>
+            </div></button>
           </div>
 
-          <div className="rounded-2xl bg-[#0f1629] border border-slate-800 overflow-hidden">
+          <div id="service-list" className="rounded-2xl bg-[#0f1629] border border-slate-800 overflow-hidden scroll-mt-6">
+          {serviceView !== 'all' && <div className="flex items-center justify-between border-b border-slate-800 px-4 py-2 text-[10px] text-slate-500"><span>{serviceView === 'active' ? `Showing ${visibleRows.length} active services` : `Sorted by ${serviceView.toUpperCase()} latency`}</span><button type="button" onClick={() => setServiceView('all')} className="text-blue-400 hover:underline">Clear filter</button></div>}
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-800">
@@ -75,7 +84,8 @@ export default function ServicesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
-              {rows.map((r: {
+              {visibleRows.length === 0 && <tr><td colSpan={11} className="px-4 py-8 text-center text-slate-500">No services match this view.</td></tr>}
+              {visibleRows.map((r: {
                 SERVICE_NAME: string; HOST: string; PORT: number; ACTIVE_STATUS: string
                 MEM_USED_MB: number; CONNECTION_COUNT: number; TRANSACTION_COUNT: number
                 COORDINATOR_TYPE: string; connName: string; RESPONSE_P95_MS?: number; RESPONSE_P99_MS?: number
