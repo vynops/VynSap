@@ -9,6 +9,7 @@ const TITLES: Record<string, string> = {
   '/overview':     'ERP Application Overview',
   '/tenants':      'ERP System Connections',
   '/services':     'Connector Health',
+  '/sql':          'HANA SQL Console',
   '/apm':          'Application Performance Monitoring',
   '/alerts':       'Alert Center',
   '/fi':           'FI Module',

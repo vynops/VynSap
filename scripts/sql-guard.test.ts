@@ -1,0 +1,22 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { validateReadOnlySql } from '../src/lib/sql-guard'
+
+test('allows single read-only statements', () => {
+  assert.equal(validateReadOnlySql('SELECT * FROM SYS.M_SERVICES'), null)
+  assert.equal(validateReadOnlySql('  with t as (select 1 from dummy) select * from t;'), null)
+  assert.equal(validateReadOnlySql("SELECT 'a;b' AS x FROM DUMMY"), null)
+})
+
+test('rejects writes, DDL and procedure calls', () => {
+  for (const sql of ['DROP TABLE T', 'DELETE FROM T', 'UPDATE T SET A=1', 'CALL P()', 'ALTER SYSTEM STOP SERVICE']) {
+    assert.ok(validateReadOnlySql(sql), sql)
+  }
+})
+
+test('rejects stacked statements, locking, SELECT INTO and comment-hidden writes', () => {
+  assert.ok(validateReadOnlySql('SELECT 1 FROM DUMMY; DROP TABLE T'))
+  assert.ok(validateReadOnlySql('SELECT * FROM T FOR UPDATE'))
+  assert.ok(validateReadOnlySql('SELECT * INTO NEWT FROM T'))
+  assert.ok(validateReadOnlySql('/* SELECT */ DELETE FROM T'))
+})

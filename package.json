@@ -7,11 +7,12 @@
     "build": "next build",
     "start": "next start -p 3080",
     "lint": "eslint",
-    "test:incidents": "tsx --test scripts/incident-management.test.ts",
+    "test:incidents": "tsx --test scripts/incident-management.test.ts", "test:sql-guard": "tsx --test scripts/sql-guard.test.ts",
     "test:incidents:http": "node scripts/incident-http-e2e.mjs",
     "smoke:report": "node scripts/smoke-report.mjs"
   },
   "dependencies": {
+    "@sap/hana-client": "^2.30.32",
     "atomically": "^2.1.1",
     "clsx": "^2.1.1",
     "groq-sdk": "^0.13.0",

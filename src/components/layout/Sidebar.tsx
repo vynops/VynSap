@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Database, Bell, AlertTriangle, Phone,
   Terminal, Brain, Shield, Timer, Bot, Users, Settings,
   LogOut, X, ChevronRight, Server, Landmark, Boxes, ShoppingCart, Factory, UserRound,
-  Package, ClipboardList,
+  Package, ClipboardList, Code2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -23,6 +23,7 @@ const NAV: NavItem[] = [
   { href: '/overview',      label: 'Overview',         icon: LayoutDashboard,  group: 'System' },
   { href: '/tenants',       label: 'ERP Systems',      icon: Database,         group: 'System' },
   { href: '/services',      label: 'Connector Health', icon: Server,           group: 'System' },
+  { href: '/sql',           label: 'HANA SQL Console', icon: Code2,            group: 'System' },
   { href: '/alerts',        label: 'Alerts',           icon: Bell,             group: 'System' },
   // Modules
   { href: '/fi',            label: 'FI',               icon: Landmark,         group: 'Modules' },

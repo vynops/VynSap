@@ -14,7 +14,7 @@ export type AuditAction =
   | 'create_transport' | 'approve_transport' | 'reject_transport' | 'apply_transport'
   | 'copilot_query' | 'scheduler_fire' | 'change_password' | 'reset_password'
   | 'change_role' | 'activate_user' | 'deactivate_user' | 'delete_user'
-  | 'notification_delivery' | 'login_success' | 'login_failure' | 'logout'
+  | 'notification_delivery' | 'login_success' | 'login_failure' | 'logout' | 'sql_query'
 
 export interface AuditEntry {
   id: string

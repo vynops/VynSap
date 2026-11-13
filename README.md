@@ -231,7 +231,7 @@ VynSAP ships with a full demo experience that activates automatically when no re
 |----------------|----------------|
 | OData | SAP Gateway (SM59 RFC destination or NW Gateway) |
 | RFC / BAPI | SAP NetWeaver with RFC-enabled function modules |
-| HANA direct | SAP HANA 2.0+ with tenant DB access |
+| HANA direct | SAP HANA 2.0+ with tenant DB access (native `@sap/hana-client` driver, default SQL port `39015`) |
 
 ---
 
@@ -385,6 +385,12 @@ These live in `data/settings.json` and are editable via **Settings** without a r
 
 3. Click **Test Connection** — VynSAP probes the endpoint and reports connectivity, version, and latency.
 4. Save. The demo banner disappears and live telemetry begins flowing.
+
+**HANA direct:** choose the `hana` database type and enter host, port (default `39015`), user, password and tenant DB name. For HANA Cloud (`hanacloud.ondemand.com`) the database name is omitted automatically. With SSL on, the **Validate server certificate** checkbox controls certificate verification.
+
+### HANA SQL Console
+
+The **SQL Console** (`/sql`) runs ad-hoc queries against HANA connections only. It is read-only: a single `SELECT`/`WITH` statement (no `FOR UPDATE` or `INTO`), capped at 500 rows, requires the editor role or higher, and every run is written to the audit log as `sql_query`.
 
 > Multiple connections are supported — one per SID or environment. All pages that show per-connection data will automatically include the new system.
 
@@ -687,6 +693,7 @@ All endpoints require authentication (valid `vs_token` cookie). Admin-only endpo
 | GET | `/api/security` | ERP users, roles, grants, and audit policies per connection |
 | POST | `/api/copilot` | Send a message to the AI Copilot |
 | GET | `/api/copilot` | Retrieve conversation history |
+| POST | `/api/sql` | Run a read-only SQL query on a HANA connection (editor+, audited) |
 | GET | `/api/audit` | Platform audit log |
 | GET/POST | `/api/settings` | Read or update app settings |
 | POST | `/api/settings/test` | Test an integration (Groq / SMTP / Slack / Teams) — admin only |

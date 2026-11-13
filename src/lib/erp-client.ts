@@ -318,7 +318,7 @@ export async function getConnectorHealth(conn: ErpConnection): Promise<Connector
     return health
   }
 
-  if (conn.dbType && conn.dbType !== 'hana') {
+  if (conn.dbType) {
     const health = [await pingDatabase(conn)]
     appendConnectorLatencySamples(
       health.map(h => ({
@@ -396,6 +396,10 @@ export async function queryErp(
   const dbType = conn.dbType ?? 'hana'
 
   try {
+    if (dbType === 'hana') {
+      const { queryHana } = await import('./adapters/hana')
+      return await queryHana(conn, query, _params)
+    }
     if (dbType === 'postgres') {
       const { queryPostgres } = await import('./adapters/postgres')
       return await queryPostgres(conn, query)
@@ -421,4 +425,6 @@ export async function queryErp(
   }
 }
 
-export function removeFromPool(_id?: string): void { /* stateless per request */ }
+export function removeFromPool(id?: string): void {
+  if (id) void import('./adapters/hana').then(m => m.removeHanaFromPool(id)).catch(() => undefined)
+}

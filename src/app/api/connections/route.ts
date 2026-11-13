@@ -44,10 +44,13 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth
   const body = await req.json()
   const endpointUrl = String(body.endpointUrl ?? '').trim()
-  const parsed = endpointUrl ? parseEndpoint(endpointUrl) : { host: '', port: 0 }
+  const dbType = body.dbType ?? 'sap-odata'
+  // Database sources use the explicit host/port; the OData endpoint only applies to SAP applications.
+  const parsed = endpointUrl && dbType === 'sap-odata' ? parseEndpoint(endpointUrl) : { host: '', port: 0 }
+  const defaultPort = dbType === 'hana' ? 39015 : 443
 
   const conn: ErpConnection = {
-    dbType: body.dbType ?? 'sap-odata',
+    dbType,
     id: newConnectionId(),
     name: body.name,
     connectorType: body.connectorType ?? 'odata',
@@ -57,7 +60,7 @@ export async function POST(req: NextRequest) {
     language: String(body.language ?? 'EN'),
     authType: body.authType ?? 'basic',
     host: parsed.host || body.host || '',
-    port: Number(body.port) || Number(parsed.port) || 443,
+    port: Number(body.port) || Number(parsed.port) || defaultPort,
     database: body.database || 'N/A',
     username: body.username,
     passwordEnc: encryptPassword(body.password ?? ''),

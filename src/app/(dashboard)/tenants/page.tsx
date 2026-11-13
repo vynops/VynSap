@@ -14,7 +14,7 @@ interface Conn {
   sapClient: string; systemNumber: string; language: string
   authType: 'basic' | 'oauth2' | 'saml'; username: string
   environment: string; status: string; healthScore: number
-  version: string; tags: string[]; lastChecked: string; notes: string; ssl: boolean
+  version: string; tags: string[]; lastChecked: string; notes: string; ssl: boolean; sslValidateCert?: boolean
   freshnessLagMins?: number | null; freshnessState?: 'fresh' | 'aging' | 'stale' | 'unknown'
 }
 
@@ -94,7 +94,7 @@ export default function TenantsPage() {
       username: conn.username,
       password: '',
       ssl: conn.ssl,
-      sslValidateCert: true,
+      sslValidateCert: conn.sslValidateCert ?? true,
       environment: conn.environment,
       notes: conn.notes ?? '',
     })
@@ -296,12 +296,14 @@ export default function TenantsPage() {
                     <option value="test">Test</option>
                   </select>
                 </div>
+                {form.dbType === 'sap-odata' && (
                 <div className="col-span-2">
                   <label className="block text-xs font-semibold text-slate-400 mb-1">Endpoint URL</label>
                   <input value={form.endpointUrl} onChange={e => f('endpointUrl', e.target.value)}
                     className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
                     placeholder="https://erp-host.example.com/sap/opu/odata/sap/SERVICE_NAME" />
                 </div>
+                )}
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-1">Host</label>
                   <input value={form.host} onChange={e => f('host', e.target.value)}
@@ -312,14 +314,15 @@ export default function TenantsPage() {
                   <label className="block text-xs font-semibold text-slate-400 mb-1">Port</label>
                   <input value={form.port} onChange={e => f('port', e.target.value)} type="number"
                     className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
-                    placeholder="5432" />
+                    placeholder={form.dbType === 'hana' ? '39015' : '5432'} />
                 </div>
                 <div className="col-span-2">
                   <label className="block text-xs font-semibold text-slate-400 mb-1">Database / Auth Database</label>
                   <input value={form.database} onChange={e => f('database', e.target.value)}
                     className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
-                    placeholder="postgres, labdb, or admin" />
+                    placeholder={form.dbType === 'hana' ? 'HDB (tenant name; leave blank for HANA Cloud)' : 'postgres, labdb, or admin'} />
                 </div>
+                {form.dbType === 'sap-odata' && (<>
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-1">SAP Client (MANDT) *</label>
                   <input value={form.sapClient} onChange={e => f('sapClient', e.target.value)} required
@@ -332,6 +335,7 @@ export default function TenantsPage() {
                     className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
                     placeholder="00" />
                 </div>
+                </>)}
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-1">Language</label>
                   <input value={form.language} onChange={e => f('language', e.target.value)}
@@ -364,6 +368,12 @@ export default function TenantsPage() {
                   <input type="checkbox" checked={form.ssl} onChange={e => f('ssl', e.target.checked)} className="accent-blue-500" />
                   <span className="text-slate-300">SSL/TLS</span>
                 </label>
+                {form.dbType === 'hana' && form.ssl && (
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={form.sslValidateCert} onChange={e => f('sslValidateCert', e.target.checked)} className="accent-blue-500" />
+                    <span className="text-slate-300">Validate server certificate</span>
+                  </label>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-400 mb-1">Notes</label>
