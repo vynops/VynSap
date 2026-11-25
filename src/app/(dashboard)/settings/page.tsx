@@ -38,6 +38,7 @@ type SettingsSection = {
 
 export default function SettingsPage() {
   const { data, isLoading, mutate } = useSWR('/api/settings', fetcher)
+  const { data: copilotData, error: copilotError, isLoading: copilotUsageLoading } = useSWR('/api/copilot', fetcher, { refreshInterval: 30000 })
   const [form, setForm] = useState<Record<string, string | number>>({})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -169,6 +170,49 @@ export default function SettingsPage() {
           <p className="text-sm text-slate-400 mt-0.5">Application configuration</p>
         </div>
       </div>
+      <section className="rounded-2xl bg-[#0f1629] border border-slate-800 p-5" aria-labelledby="usage-heading">
+        <div className="mb-4">
+          <h3 id="usage-heading" className="text-xs font-bold text-slate-400 uppercase tracking-wide">Today's AI Usage</h3>
+          <p className="mt-1 text-[11px] text-slate-500">Token usage is grouped by UTC date.</p>
+        </div>
+        {copilotUsageLoading ? (
+          <p className="text-sm text-slate-500">Loading usage…</p>
+        ) : copilotError ? (
+          <p className="text-sm text-red-400">Unable to load AI usage.</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+              {[
+                ['Requests', copilotData?.usage?.today?.requests ?? 0],
+                ['Prompt Tokens', copilotData?.usage?.today?.promptTokens ?? 0],
+                ['Completion Tokens', copilotData?.usage?.today?.completionTokens ?? 0],
+                ['Tokens Today', copilotData?.usage?.today?.totalTokens ?? 0],
+                ['All-time Tokens', copilotData?.usage?.totalTokens ?? 0],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-xl border border-slate-800 bg-slate-900/50 p-3 text-center">
+                  <div className="text-lg font-bold text-white">{Number(value).toLocaleString()}</div>
+                  <div className="text-[10px] text-slate-500">{label}</div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-5">
+              <h4 className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">Last 7 days by model (UTC)</h4>
+              {(copilotData?.usage?.last7DaysByModel ?? []).length === 0 ? (
+                <p className="text-sm text-slate-500">No AI requests in the last 7 days.</p>
+              ) : (
+                <ul className="divide-y divide-slate-800/70">
+                  {copilotData.usage.last7DaysByModel.map((item: { date: string; provider: string; model: string; requests: number; totalTokens: number }, index: number) => (
+                    <li key={`${item.date}-${item.provider}-${item.model}-${index}`} className="flex flex-wrap items-center justify-between gap-1 py-2 text-xs">
+                      <span className="text-slate-300">{item.date} · {item.provider}{item.model ? ` / ${item.model}` : ''}</span>
+                      <span className="text-slate-500">{item.requests} req · {item.totalTokens.toLocaleString()} tok</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </>
+        )}
+      </section>
       <form onSubmit={handleSave} className="space-y-6">
         {sections.map(section => (
           <div key={section.title} className="rounded-2xl bg-[#0f1629] border border-slate-800 p-5">

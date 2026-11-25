@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
 import { requireRole } from '@/lib/auth'
 import { loadSettings, type AppSettings } from '@/lib/settings-store'
+import { describeAiError } from '@/lib/copilot'
 
 type TestKind = 'groq' | 'openai' | 'anthropic' | 'google' | 'custom' | 'email' | 'slack' | 'teams' | 'webhook'
 
@@ -51,12 +52,7 @@ async function testAi(settings: Partial<AppSettings>, provider: string) {
     if (!baseUrl) return NextResponse.json({ ok: false, message: 'Custom AI provider requires a base URL.' }, { status: 400 })
     response = await fetch(`${baseUrl.replace(/\/$/, '')}/chat/completions`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` }, body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], max_tokens: 24, temperature: 0 }) })
   }
-  if (!response.ok) {
-    if (response.status === 401) {
-      throw new Error(`${provider} API returned 401: API key is invalid, expired, or revoked. Replace the key in Settings and save it again.`)
-    }
-    throw new Error(`${provider} API returned ${response.status}`)
-  }
+  if (!response.ok) throw new Error(await describeAiError(provider, model, response))
   return NextResponse.json({ ok: true, message: `${provider} connected successfully with ${model}.` })
 }
 

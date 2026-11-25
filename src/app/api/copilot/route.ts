@@ -92,6 +92,8 @@ export async function POST(req: NextRequest) {
   const saved = addCopilotHistoryEntry({
     connId,
     connName,
+    provider: result.provider,
+    model: result.model,
     prompt: message,
     reply: result.reply,
     promptTokens: result.promptTokens,

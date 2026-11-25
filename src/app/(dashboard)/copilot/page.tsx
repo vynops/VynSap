@@ -68,7 +68,8 @@ export default function CopilotPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text, connId, history: nextHistory }),
       })
-      const d = await res.json()
+      const d = await res.json().catch(() => null)
+      if (!d) throw new Error(res.status === 504 ? 'The AI provider took too long to respond (gateway timeout). Try again or pick a faster model.' : `Server returned HTTP ${res.status} with a non-JSON response.`)
       if (!res.ok) throw new Error(String(d.error ?? 'AI request failed'))
       setMessages(p => [...p, { role: 'assistant', content: d.reply ?? 'No response.' }])
       mutate()

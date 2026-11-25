@@ -9,6 +9,8 @@ export interface CopilotHistoryEntry {
   id: string
   connId?: string
   connName?: string
+  provider?: string
+  model?: string
   prompt: string
   reply: string
   promptTokens: number
@@ -19,6 +21,13 @@ export interface CopilotHistoryEntry {
 
 interface CopilotHistoryData {
   entries: CopilotHistoryEntry[]
+  lifetimeUsage?: {
+    totalPrompts: number
+    promptTokens: number
+    completionTokens: number
+    totalTokens: number
+  }
+  usageEvents?: Array<Pick<CopilotHistoryEntry, 'provider' | 'model' | 'promptTokens' | 'completionTokens' | 'totalTokens' | 'createdAt'>>
 }
 
 function read(): CopilotHistoryData {
@@ -77,6 +86,33 @@ export function addCopilotHistoryEntry(entry: Omit<CopilotHistoryEntry, 'id' | '
     id: `cop-${crypto.randomUUID().slice(0, 8)}`,
     createdAt: new Date().toISOString(),
   }
+  const entries = loadCopilotHistory()
+  const lifetimeUsage = data.lifetimeUsage ?? entries.reduce((usage, item) => ({
+    totalPrompts: usage.totalPrompts + 1,
+    promptTokens: usage.promptTokens + item.promptTokens,
+    completionTokens: usage.completionTokens + item.completionTokens,
+    totalTokens: usage.totalTokens + item.totalTokens,
+  }), { totalPrompts: 0, promptTokens: 0, completionTokens: 0, totalTokens: 0 })
+  data.lifetimeUsage = {
+    totalPrompts: lifetimeUsage.totalPrompts + 1,
+    promptTokens: lifetimeUsage.promptTokens + saved.promptTokens,
+    completionTokens: lifetimeUsage.completionTokens + saved.completionTokens,
+    totalTokens: lifetimeUsage.totalTokens + saved.totalTokens,
+  }
+  const today = new Date(saved.createdAt)
+  today.setUTCHours(0, 0, 0, 0)
+  today.setUTCDate(today.getUTCDate() - 6)
+  const usageEvents = data.usageEvents ?? entries.map(({ provider, model, promptTokens, completionTokens, totalTokens, createdAt }) => ({
+    provider, model, promptTokens, completionTokens, totalTokens, createdAt,
+  }))
+  data.usageEvents = [...usageEvents.filter(event => new Date(event.createdAt).getTime() >= today.getTime()), {
+    provider: saved.provider,
+    model: saved.model,
+    promptTokens: saved.promptTokens,
+    completionTokens: saved.completionTokens,
+    totalTokens: saved.totalTokens,
+    createdAt: saved.createdAt,
+  }]
   data.entries.unshift(saved)
   if (data.entries.length > 100) data.entries.length = 100
   write(data)
@@ -84,22 +120,78 @@ export function addCopilotHistoryEntry(entry: Omit<CopilotHistoryEntry, 'id' | '
 }
 
 export function clearCopilotHistory() {
-  write({ entries: [] })
+  const data = read()
+  const entries = loadCopilotHistory()
+  if (!data.lifetimeUsage) {
+    data.lifetimeUsage = entries.reduce((usage, item) => ({
+      totalPrompts: usage.totalPrompts + 1,
+      promptTokens: usage.promptTokens + item.promptTokens,
+      completionTokens: usage.completionTokens + item.completionTokens,
+      totalTokens: usage.totalTokens + item.totalTokens,
+    }), { totalPrompts: 0, promptTokens: 0, completionTokens: 0, totalTokens: 0 })
+  }
+  if (!data.usageEvents) {
+    data.usageEvents = entries.map(({ provider, model, promptTokens, completionTokens, totalTokens, createdAt }) => ({
+      provider, model, promptTokens, completionTokens, totalTokens, createdAt,
+    }))
+  }
+  data.entries = []
+  write(data)
 }
 
 export function getCopilotUsageSummary() {
+  const data = read()
   const entries = loadCopilotHistory()
-  const totalPrompts = entries.length
-  const promptTokens = entries.reduce((n, e) => n + e.promptTokens, 0)
-  const completionTokens = entries.reduce((n, e) => n + e.completionTokens, 0)
-  const totalTokens = entries.reduce((n, e) => n + e.totalTokens, 0)
-  const last24h = entries.filter(e => Date.now() - new Date(e.createdAt).getTime() < 24 * 3600 * 1000)
+  const lifetimeUsage = data.lifetimeUsage ?? entries.reduce((usage, item) => ({
+    totalPrompts: usage.totalPrompts + 1,
+    promptTokens: usage.promptTokens + item.promptTokens,
+    completionTokens: usage.completionTokens + item.completionTokens,
+    totalTokens: usage.totalTokens + item.totalTokens,
+  }), { totalPrompts: 0, promptTokens: 0, completionTokens: 0, totalTokens: 0 })
+  const usageEvents = data.usageEvents ?? entries.map(({ provider, model, promptTokens, completionTokens, totalTokens, createdAt }) => ({
+    provider, model, promptTokens, completionTokens, totalTokens, createdAt,
+  }))
+  const now = new Date()
+  const today = now.toISOString().slice(0, 10)
+  const firstDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 6))
+  const recentEvents = usageEvents.filter(event => event.createdAt.slice(0, 10) >= firstDay.toISOString().slice(0, 10) && event.createdAt.slice(0, 10) <= today)
+  const todayEvents = recentEvents.filter(event => event.createdAt.slice(0, 10) === today)
+  const byModel = new Map<string, {
+    date: string
+    provider: string
+    model: string
+    requests: number
+    totalTokens: number
+  }>()
+  const providerLabels: Record<string, string> = {
+    groq: 'Groq',
+    openai: 'OpenAI',
+    anthropic: 'Anthropic (Claude)',
+    google: 'Google (Gemini)',
+    custom: 'Custom / Self-Hosted',
+  }
+  for (const event of recentEvents) {
+    const date = event.createdAt.slice(0, 10)
+    const provider = event.provider
+      ? providerLabels[event.provider] ?? event.provider
+      : 'Unattributed (older usage)'
+    const model = event.model ?? ''
+    const key = `${date}\0${provider}\0${model}`
+    const current = byModel.get(key) ?? { date, provider, model, requests: 0, totalTokens: 0 }
+    current.requests += 1
+    current.totalTokens += event.totalTokens
+    byModel.set(key, current)
+  }
   return {
-    totalPrompts,
-    promptTokens,
-    completionTokens,
-    totalTokens,
-    prompts24h: last24h.length,
-    avgTokensPerPrompt: totalPrompts > 0 ? Math.round(totalTokens / totalPrompts) : 0,
+    ...lifetimeUsage,
+    prompts24h: usageEvents.filter(event => now.getTime() - new Date(event.createdAt).getTime() < 24 * 3600 * 1000).length,
+    avgTokensPerPrompt: lifetimeUsage.totalPrompts > 0 ? Math.round(lifetimeUsage.totalTokens / lifetimeUsage.totalPrompts) : 0,
+    today: {
+      requests: todayEvents.length,
+      promptTokens: todayEvents.reduce((total, event) => total + event.promptTokens, 0),
+      completionTokens: todayEvents.reduce((total, event) => total + event.completionTokens, 0),
+      totalTokens: todayEvents.reduce((total, event) => total + event.totalTokens, 0),
+    },
+    last7DaysByModel: [...byModel.values()].sort((a, b) => b.date.localeCompare(a.date) || a.provider.localeCompare(b.provider) || a.model.localeCompare(b.model)),
   }
 }

@@ -1,18 +1,8 @@
 node_modules/
 .next/
-dist/
-build/
+.agent-state.md
+.deployment/
 .env
 .env.*
-!.env.example
-*.log
+!.env.local.example
 data/*.json
-data/*.json2
-!data/.gitkeep
-!data/*.example.json
-*.tsbuildinfo
-tsconfig.tsbuildinfo
-.code-review-graph/
-
-# local runtime backups
-data/*.backup*
